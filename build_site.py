@@ -663,31 +663,26 @@ a{{color:#B81E67;font-weight:600}}</style></head>
         f'<priority>1.0</priority></url>\n</urlset>\n', encoding="utf-8")
 
 
-    # ---- for the no-CLI path -------------------------------------------
-    # Dragging public/ into the Cloudflare dashboard deploys the files but not
-    # worker.js, so the headers and the www redirect would be lost. Cloudflare
-    # reads these two plain-text files instead, which recovers both without
-    # anyone needing a terminal. Harmless on the Worker path, which supports
-    # the same files.
-    (PUB / "_headers").write_text("""/*
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Permissions-Policy: geolocation=(), microphone=(), camera=()
-  Content-Security-Policy: default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'
-
-/fonts/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/img/*
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.html
-  Cache-Control: public, max-age=0, must-revalidate
-""", encoding="utf-8")
-
-    (PUB / "_redirects").write_text(
-        f"https://www.{C.DOMAIN}/* https://{C.DOMAIN}/:splat 301\n", encoding="utf-8")
+    # ---- _headers and _redirects are deliberately NOT generated ----------
+    # They used to be, for the abandoned Pages Direct Upload path, on the
+    # assumption they were "harmless on the Worker path". They are not.
+    # Workers Assets rejects an absolute URL in _redirects outright:
+    #
+    #   ✘ Invalid _redirects configuration:
+    #     Line 1: Only relative URLs are allowed. [code: 100324]
+    #
+    # and the www → apex rule has to be absolute, because the whole point is
+    # to move between hosts. Pages allowed it; Workers does not. That one line
+    # failed every deploy while the build itself passed every check — the
+    # error arrives from the API after the upload, so the log looks healthy
+    # right up to the last line.
+    #
+    # Nothing is lost by dropping them: worker.js sets the same security
+    # headers, the same cache rules and the same 301 in code, which is the
+    # single source of truth. Anything re-adding these files will break the
+    # deploy again.
+    for stale in ("_headers", "_redirects"):
+        (PUB / stale).unlink(missing_ok=True)
 
     kb = (PUB / "index.html").stat().st_size / 1024
     print(f"built public/index.html — {kb:.0f} KB  ·  draft={C.DRAFT}")
