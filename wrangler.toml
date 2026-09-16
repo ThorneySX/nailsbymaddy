@@ -1,0 +1,50 @@
+name = "nailsbymaddy"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# The whole site is static. The Worker only exists to set headers and send
+# www → apex; Cloudflare serves the files themselves from the edge.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+# Static site, one page: anything unknown gets the 404 page, not index.html.
+not_found_handling = "404-page"
+
+[[routes]]
+pattern = "nailsbymaddy.co.uk"
+custom_domain = true
+
+[[routes]]
+pattern = "www.nailsbymaddy.co.uk"
+custom_domain = true
+
+# ---------------------------------------------------------------------------
+# Instagram gallery — OFF until Maddy's account is switched to professional.
+#
+# The Worker checks for these bindings at runtime, so while they're commented
+# out it simply serves the static gallery and the sync never runs. Nothing
+# breaks. To switch it on:
+#
+#   wrangler kv namespace create IG          # paste the id below
+#   wrangler r2 bucket create nailsbymaddy-media
+#   wrangler secret put IG_TOKEN             # the long-lived OAuth token
+#   …then uncomment this block and redeploy.
+#
+# They stay commented rather than filled with placeholders because a fake KV id
+# fails the deploy, and a real one for a bucket nobody is writing to is clutter.
+#
+# [[kv_namespaces]]
+# binding = "IG"
+# id = ""
+#
+# [[r2_buckets]]
+# binding = "MEDIA"
+# bucket_name = "nailsbymaddy-media"
+#
+# 04:20 UTC — after she'd have posted the night before, before anyone looks.
+# [triggers]
+# crons = ["20 4 * * *"]
+# ---------------------------------------------------------------------------
+
+[observability]
+enabled = true

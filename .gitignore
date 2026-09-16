@@ -1,0 +1,17 @@
+# public/ IS committed, deliberately, and it is still generated — never edit
+# it by hand. Committing it means the repo always holds a deployable site
+# even if the build step fails on Cloudflare, which is the one failure with
+# no way out: there is no local Node here to fall back to. Cloudflare
+# regenerates it during the build anyway, so the committed copy is a spare
+# wheel, not the source. Source is config.py, services.json and brand/.
+
+node_modules/
+__pycache__/
+*.pyc
+.wrangler/
+.DS_Store
+
+# Anything that could carry a secret
+.dev.vars
+.env
+*.local
