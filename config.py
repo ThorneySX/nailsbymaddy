@@ -26,7 +26,11 @@ BUSINESS = {
     "whatsapp": "447727674214",
     "whatsapp_msg": "Hi Maddy, I'd like to book an appointment.",
     "email": f"hello@{DOMAIN}",
+    # The bold line on the address is HER name, not the salon's. She is the
+    # business; the salon is where she works from. It also means the page does
+    # not lean on Kizuri's name before Kizuri has agreed to it.
     "venue": "Kizuri Beauty Parlour",
+    "venue_note": "inside Kizuri Beauty Parlour",
     "street": "162 Hamlet Court Road",
     "town": "Westcliff-on-Sea",
     "county": "Essex",
@@ -224,14 +228,21 @@ OUTSTANDING = {
 
 HERO = {
     "eyebrow": f"{BUSINESS['town']} · Southend",
-    "h1": "Nails that last, on nails that stay healthy.",
+    # The old line — "Nails that last, on nails that stay healthy" — sold a
+    # category. Plenty of salons could put it up. This sells HER: eight years,
+    # Level 3 qualified, natural nails only, and the one thing that actually
+    # decides whether a nervous client books, which is that she will say no.
+    "h1": "Eight years of natural nails, Westcliff and Southend.",
     "lead": (
-        "Natural nail specialist. Gel, builder and hard gel, nail art and "
-        "spa pedicures — eight years in the trade, and no acrylic in sight."
+        "Level 2 and Level 3 qualified, and no acrylic in sight. I strengthen "
+        "your own nails with builder and hard gel rather than covering them "
+        "up — and if your nails can't take what you're asking for, I'll tell "
+        "you before we start, not after."
     ),
 }
 
-TRUST = ["8 years' experience", "Natural nails only", "Sensitive nails welcome", "Nail art"]
+TRUST = ["8 years' experience", "Level 2 & 3 qualified",
+         "HEMA-free available", "Natural nails only"]
 
 ABOUT = [
     "I work from Kizuri Beauty Parlour on Hamlet Court Road, and I look after "
@@ -336,10 +347,15 @@ SEO = {
     # Keep both towns but stay inside what Google actually displays: ~60
     # characters for the title, ~155 for the description.
     "title": "Nails by Maddy | Gel & Builder Gel Nails, Westcliff, Southend",
+    # Leads with what is searched (Southend, Westcliff, gel nails), says what
+    # makes her different in four words (natural nails, no acrylics), and
+    # carries the qualification. It no longer leans on Kizuri's name — that
+    # is where she works, not what she is selling, and their sign-off on
+    # using the address is still outstanding.
     "description": (
-        "Gel, builder gel and hard gel on natural nails, plus nail art and "
-        "pedicures. Nail technician at Kizuri, Hamlet Court Road, "
-        "Westcliff-on-Sea. No acrylics."
+        "Level 2 and 3 qualified nail technician in Westcliff-on-Sea and "
+        "Southend. Gel, builder gel and hard gel on natural nails. HEMA-free "
+        "available, no acrylics."
     ),
 }
 

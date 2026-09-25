@@ -11,6 +11,7 @@ from the brand pack so the site never calls a third party.
 import html as H
 import json
 import re
+import datetime as _dt
 import shutil
 from pathlib import Path
 
@@ -239,11 +240,12 @@ def cta_row(align="center"):
                      f'{icon(kind)}<span>{esc(label)}</span></a>')
     html_ = "".join(parts)
     style = ' style="justify-content:flex-start"' if align == "left" else ""
-    note = ""
-    if C.DRAFT and not C.OUTSTANDING["booking_url"]:
-        note = ('<p class="addr-note">Draft note: <b>Book online</b> appears here once '
-                'the booking system is chosen. WhatsApp and Call work now.</p>')
-    return f'<div class="cta"{style}>{html_}</div>{note}'
+    # No draft note. It was scaffolding addressed to us, printed on a page
+    # the client reads — "Book online appears here once the booking system is
+    # chosen" tells a visitor about our to-do list. What is outstanding lives
+    # in config.py and in the README, which is where the people who can act
+    # on it look. The page only ever shows what is true today.
+    return f'<div class="cta"{style}>{html_}</div>'
 
 
 def cta(label=None):
@@ -285,12 +287,18 @@ def hours_html():
     for day in order:
         parts = []
         for h in by_day[day]:
+            # Season label FIRST, time last. With the label trailing, the
+            # times on a seasonal day sat left of the column every other day
+            # right-aligns to, so Thursday looked like a different table.
             t = f'{esc(h["open"])}–{esc(h["close"])}'
-            if h.get("season"):
-                t += f' <span class="season">{esc(C.SEASONS[h["season"]]["label"])}</span>'
-            parts.append(t)
+            lab = (f'<span class="season">{esc(C.SEASONS[h["season"]]["label"])}</span>'
+                   if h.get("season") else '')
+            # Each window is ONE element, so the dd can be a column of rows.
+            # Left loose in the dd, the label and the time became two rows of
+            # the flex column and the day read as two days.
+            parts.append(f'<span class="win">{lab}<span class="hrs">{t}</span></span>')
         rows.append(f'<div class="row"><dt>{esc(day)}</dt>'
-                    f'<dd>{"<br>".join(parts)}</dd></div>')
+                    f'<dd>{"".join(parts)}</dd></div>')
     return f'<dl class="hours">{"".join(rows)}</dl>'
 
 
@@ -427,7 +435,11 @@ def schema():
         "url": C.SITE_URL + "/",
         "telephone": b["phone_e164"],
         "email": b["email"],
-        "image": f"{C.SITE_URL}/img/share.png",
+        # The share card first, then the real photographs. Google reads
+        # `image` for the knowledge panel and for image search, and nineteen
+        # pieces of her own work say more than one generic card.
+        "image": ([f"{C.SITE_URL}/img/share.png"] +
+                  [f"{C.SITE_URL}/{img(x['file'])}" for x in C.OUTSTANDING["gallery"]]),
         "priceRange": "££",
         "currenciesAccepted": "GBP",
         "address": {
@@ -501,9 +513,6 @@ DRAFT_CSS = """
 .hold-tag{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
   background:var(--pink);color:#fff;padding:.2rem .6rem;border-radius:999px}
 .hold-note{font-weight:400;font-size:.85rem;color:var(--ink-60)}
-.ribbon{background:var(--ink);color:#fff;text-align:center;padding:.6rem 1rem;
-  font-size:.82rem;font-weight:600;letter-spacing:.04em}
-.ribbon b{color:var(--pink)}
 """
 
 CSS = """
@@ -515,6 +524,9 @@ CSS = """
 }
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+/* The header is sticky, so an anchored section would otherwise land with its
+   heading underneath it. */
+section[id],#top,#main{scroll-margin-top:4.6rem}
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   *{animation-duration:.01ms!important;transition-duration:.01ms!important}
@@ -539,10 +551,68 @@ a{color:var(--pink-ink)}
 /* ---- header ---- */
 .site-head{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);
   backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.head-in{display:flex;align-items:center;gap:1rem;justify-content:space-between;
-  padding-block:.7rem}
-.logo{width:clamp(108px,26vw,140px);height:auto}
-.head-in .btn{padding:.55rem 1rem;font-size:.9rem}
+.head-in{display:flex;align-items:center;gap:.7rem;justify-content:space-between;
+  padding-block:.35rem}
+/* Bigger mark, SHORTER bar. The logo is mostly clear space above and below
+   the wordmark, so it can grow into the padding the header was spending on
+   nothing — the header ends up 6px shorter than before while the mark is
+   half again as wide. A sticky header costs the same height on every screen,
+   which on a phone is the scarcest thing there is. */
+.logo{width:clamp(150px,40vw,190px);height:auto;display:block}
+.head-in .btn{padding:.5rem .95rem;font-size:.88rem}
+.head-right{display:flex;align-items:center;gap:.6rem}
+
+/* ---- section nav, no JavaScript ----
+   A checkbox and its label. The CSP forbids scripts, and a burger is one
+   boolean — there is nothing here JavaScript would do better. The page is
+   long on a phone (nineteen photographs, twenty prices, six FAQs), so the
+   nav is not decoration: it is the difference between scrolling past the
+   prices and going to them. */
+.burger{display:none;width:44px;height:44px;border-radius:12px;cursor:pointer;
+  align-items:center;justify-content:center;border:1px solid var(--line);
+  background:#fff;flex:0 0 auto}
+.burger span,.burger span::before,.burger span::after{display:block;
+  width:18px;height:2px;background:var(--ink);border-radius:2px;content:""}
+.burger span{position:relative}
+.burger span::before{position:absolute;top:-6px}
+.burger span::after{position:absolute;top:6px}
+.burger:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.nav-close{display:none}
+.nav{border-top:1px solid var(--line);background:#fff}
+.nav .wrap{display:flex;gap:1.4rem;overflow-x:auto;padding-block:.6rem;
+  scrollbar-width:none}
+.nav .wrap::-webkit-scrollbar{display:none}
+.nav a{font-family:Outfit,sans-serif;font-weight:600;font-size:.82rem;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--ink);
+  text-decoration:none;white-space:nowrap;padding:.35rem 0;
+  border-bottom:2px solid transparent}
+.nav a:hover,.nav a:focus-visible{border-bottom-color:var(--pink)}
+
+@media (max-width:43.99rem){
+  .burger{display:flex}
+  /* Closed by default on a phone; the URL fragment is the whole mechanism. */
+  .nav{display:none}
+  .nav:target{display:block}
+  .nav-close{display:block;color:var(--ink-60)}
+  .nav .wrap{flex-direction:column;gap:0;overflow:visible;padding-block:.2rem}
+  .nav a{padding:.85rem .1rem;border-bottom:1px solid var(--line);
+    border-top:none;font-size:.9rem}
+  .nav a:last-child{border-bottom:none}
+  .nav a:hover,.nav a:focus-visible{border-bottom-color:var(--line);
+    color:var(--pink-ink)}
+}
+
+/* ---- back to top ----
+   Always present rather than appearing on scroll, because appearing on
+   scroll needs a scroll listener and there is no JavaScript. Small, low
+   contrast, out of the thumb's way at the bottom-right. */
+.totop{position:fixed;right:.9rem;bottom:.9rem;z-index:30;
+  width:44px;height:44px;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;text-decoration:none;
+  background:rgba(20,20,22,.55);color:#fff;font-size:1.1rem;line-height:1;
+  backdrop-filter:blur(6px)}
+.totop:hover,.totop:focus-visible{background:var(--pink)}
+@media print{.totop,.burger,.nav{display:none}}
 
 /* ---- buttons ---- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
@@ -614,7 +684,14 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
   border-radius:0 10px 10px 0;padding:.9rem 1.1rem;margin:0 0 .9rem;
   color:var(--ink);font-weight:600}
 .products .aside{font-size:.9rem;margin-bottom:0}
-.hours .season{font-weight:400;color:var(--muted);font-size:.86em;white-space:nowrap}
+/* Season label left, time right, so a seasonal day's hours land in the same
+   column as every other day's. With the label trailing, Thursday read as a
+   different table from the rest. */
+.hours .season{font-weight:400;color:var(--ink-60);font-size:.84em;
+  white-space:nowrap;margin-right:.55rem}
+.hours .hrs{font-variant-numeric:tabular-nums;white-space:nowrap}
+.hours dd{display:flex;flex-direction:column;gap:.2rem;align-items:flex-end}
+.hours .win{display:inline-flex;align-items:baseline;justify-content:flex-end}
 .row{display:flex;align-items:baseline;gap:.6rem;padding:.6rem 0;
   border-bottom:1px solid var(--line)}
 .row dt{flex:1;margin:0;font-weight:500}
@@ -633,7 +710,10 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
 @media (min-width:52rem){.quotes{grid-template-columns:repeat(3,1fr)}}
 
 /* ---- gallery ---- */
-.grid{display:grid;gap:.7rem;grid-template-columns:repeat(2,1fr)}
+/* Three across on a phone, not two. Nineteen photographs two-up is most of
+   the page's length on its own, and at this size the set is still legible —
+   the detail panel is where anyone looks properly anyway. */
+.grid{display:grid;gap:.45rem;grid-template-columns:repeat(3,1fr)}
 .grid .tile{margin:0}
 /* tiles link to the post when the gallery comes from Instagram */
 .grid .tile a{display:block;border-radius:12px;overflow:hidden}
@@ -683,7 +763,11 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
 /* ---- find ---- */
 .find{display:grid;gap:1.5rem}
 .addr{font-style:normal;font-size:1.1em;line-height:1.5;margin:0 0 1rem}
-.addr b{display:block;font-weight:700}
+/* Her name is the bold line. The salon is where she works from, not who
+   the client is booking. */
+.addr b{display:block;font-weight:700;font-size:1.12em}
+.addr .venue{display:block;color:var(--ink-60);font-size:.9em;
+  margin:.1rem 0 .35rem}
 .addr-note{color:var(--ink-60);font-size:.9rem}
 .hours .row dd{font-weight:600}
 @media (min-width:44rem){.find{grid-template-columns:1fr 1fr;gap:2.5rem}}
@@ -731,8 +815,15 @@ def build():
     copy_assets()
     b, o = C.BUSINESS, C.OUTSTANDING
 
-    ribbon = ('<div class="ribbon">Draft — <b>not live</b>. Dashed blocks are '
-              'waiting on Maddy.</div>') if C.DRAFT else ""
+    # DRAFT no longer paints a banner across the top. It still does the work
+    # that matters — noindex, placeholders for missing content, and hiding
+    # reviews nobody has agreed to publish — but the visible label is gone.
+    # A banner saying "not live" on a site people are being shown is a note
+    # to ourselves in the client's line of sight.
+    #
+    # Which means the ONLY remaining signal that this is a draft is the
+    # noindex tag. Check config.DRAFT before assuming the site is live.
+    ribbon = ""
     robots = '<meta name="robots" content="noindex,nofollow">' if C.DRAFT else ""
 
     trust = "".join(f"<li>{esc(t)}</li>" for t in C.TRUST)
@@ -767,11 +858,30 @@ def build():
 <a class="skip" href="#main">Skip to content</a>
 {ribbon}
 
-<header class="site-head">
+<header class="site-head" id="top">
   <div class="wrap head-in">
-    <a href="#main" aria-label="Nails by Maddy — home">{logo_img()}</a>
-    {cta()}
+    <a class="brand" href="#top" aria-label="Nails by Maddy — home">{logo_img()}</a>
+    <div class="head-right">
+      {cta()}
+      <a class="burger" href="#menu" aria-label="Open menu"><span></span></a>
+    </div>
   </div>
+  <!-- :target, not a checkbox. A checkbox stays checked, so after tapping
+       "Find me" the menu was still open and sitting on top of the section it
+       had just jumped to. With :target, following any section link moves the
+       target off #menu and the menu closes itself — the same click that
+       navigates also tidies up. No JavaScript either way. -->
+  <nav class="nav" id="menu" aria-label="Sections">
+    <div class="wrap">
+      <a href="#about">About</a>
+      <a href="#prices">Prices</a>
+      <a href="#work">Gallery</a>
+      <a href="#reviews">Reviews</a>
+      <a href="#faq">FAQs</a>
+      <a href="#find">Find me</a>
+      <a class="nav-close" href="#top">Close</a>
+    </div>
+  </nav>
 </header>
 
 <main id="main">
@@ -829,7 +939,7 @@ def build():
       <h2>Find me</h2>
       <div class="find">
         <div>
-          <address class="addr"><b>{esc(b["venue"])}</b>{esc(b["street"])}<br>
+          <address class="addr"><b>{esc(b["name"])}</b><span class="venue">{esc(b["venue_note"])}</span>{esc(b["street"])}<br>
             {esc(b["town"])}<br>{esc(b["postcode"])}</address>
           {maps_link}
           {cta_row("left")}
@@ -840,6 +950,8 @@ def build():
   </section>
 
 </main>
+
+<a class="totop" href="#top" aria-label="Back to top">↑</a>
 
 <footer class="site-foot">
   <div class="wrap">
@@ -888,7 +1000,9 @@ a{{color:#B81E67;font-weight:600}}</style></head>
     (PUB / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        f'  <url><loc>{C.SITE_URL}/</loc><changefreq>monthly</changefreq>'
+        f'  <url><loc>{C.SITE_URL}/</loc>'
+        f'<lastmod>{_dt.date.today().isoformat()}</lastmod>'
+        f'<changefreq>monthly</changefreq>'
         f'<priority>1.0</priority></url>\n</urlset>\n', encoding="utf-8")
 
 

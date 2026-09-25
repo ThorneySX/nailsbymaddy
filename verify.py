@@ -348,6 +348,35 @@ for brand in ('Twenty Pro', 'American Creator'):
 print(f"✓ {len(C.GROUPS)} price groups each carry a description; "
       f"products block and HEMA highlight both render")
 
+# 6f. the section nav must actually go somewhere. The page is long on a
+#     phone — nineteen photographs, twenty prices, six FAQs — so every nav
+#     link pointing at a section that exists is the difference between
+#     finding the prices and scrolling past them. A dead nav link is worse
+#     than no nav at all.
+nav_targets = re.findall(r'<nav class="nav".*?</nav>', html, re.S)
+if not nav_targets:
+    fails.append("the section nav is missing")
+else:
+    links = re.findall(r'href="#([^"]+)"', nav_targets[0])
+    if len(links) < 4:
+        fails.append(f"section nav has only {len(links)} links")
+    for t in links:
+        if f'id="{t}"' not in html:
+            fails.append(f"nav links to #{t}, which is not on the page")
+    print(f"✓ section nav: {len(links)} links, every target exists")
+
+# The burger is an anchor and the nav is its :target. With no JavaScript that
+# pairing IS the menu, so a renamed id silently leaves the nav permanently
+# shut — and shut is the default, so nobody would notice on a desktop.
+if 'href="#menu"' not in html or 'id="menu"' not in html:
+    fails.append("burger href and nav id no longer match — the menu cannot open")
+if 'class="nav-close"' not in html:
+    fails.append("no way to close the menu without choosing a section")
+if 'class="totop"' not in html or 'href="#top"' not in html:
+    fails.append("back-to-top link missing")
+if 'id="top"' not in html:
+    fails.append("back-to-top points at #top, which does not exist")
+
 # 7. title and description must survive Google's truncation
 title, desc = C.SEO['title'], C.SEO['description']
 if len(title) > 62: fails.append(f"title {len(title)} chars — Google cuts near 60")
