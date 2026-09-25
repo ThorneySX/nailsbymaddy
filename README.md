@@ -7,6 +7,11 @@ self-hosted, which is why the CSP can be `default-src 'self'; script-src 'none'`
 52 KB of HTML, about 11 KB over the wire. No layout shift; every image is
 dimensioned.
 
+> **Changing anything? Read [`AGENTS.md`](AGENTS.md) first.** This file explains
+> how the site works; that one lists the invariants — brand rules that were
+> broken once, legal constraints on prices and supplier marks, and the
+> thresholds that go stale silently. It is short.
+
 ---
 
 ## Deploying — no terminal needed
