@@ -22,6 +22,21 @@ PHOTOS = ROOT / "photos"                 # Maddy's own photographs, as supplied
 PUB = ROOT / "public"                    # generated — never edit, never committed
 NODE = ROOT / "node_modules/@fontsource"
 
+# Photograph filename -> the content-hashed name actually published. Filled by
+# copy_assets(); img() reads it. Empty until then, which is why copy_assets
+# runs before any HTML is built.
+ASSETS = {}
+
+
+def img(name):
+    """The published path for a photograph, with its content hash."""
+    if name not in ASSETS:
+        raise SystemExit(
+            f"img({name!r}) called before copy_assets() published it — "
+            f"the hashed name is only known once the file is written."
+        )
+    return f"img/{ASSETS[name]}"
+
 esc = lambda s: H.escape(str(s), quote=False)
 
 
@@ -55,6 +70,7 @@ def copy_assets():
     # clean masters. The portrait is NOT stamped — it is Maddy's own face on
     # Maddy's own site, and a watermark there would read as a stock photo,
     # which is the opposite of what it is for.
+    import hashlib
     import watermark
 
     wanted = [p["file"] for p in C.OUTSTANDING["gallery"]]
@@ -65,10 +81,26 @@ def copy_assets():
         src = PHOTOS / f
         if not src.exists():
             raise SystemExit(f"config names photos/{f}, which does not exist")
+        tmp = PUB / "img" / f
         if f == portrait:
-            shutil.copy(src, PUB / "img" / f)
+            shutil.copy(src, tmp)
         else:
-            watermark.stamp_file(src, PUB / "img" / f)
+            watermark.stamp_file(src, tmp)
+
+        # Rename to include a hash of the finished bytes, and remember the
+        # mapping so the page can link to it.
+        #
+        # These files are served with max-age=31536000, immutable — a year,
+        # and a promise to the browser and to every Cloudflare edge that the
+        # bytes behind this URL will never change. Under a fixed filename
+        # that promise was a lie: all nineteen photographs were rewritten
+        # today under the names they already had, so anyone holding
+        # yesterday's copy keeps it until 2027. Content in the name makes
+        # the promise true — change the picture and it is a different URL.
+        digest = hashlib.sha256(tmp.read_bytes()).hexdigest()[:8]
+        final = f"{tmp.stem}.{digest}{tmp.suffix}"
+        tmp.rename(PUB / "img" / final)
+        ASSETS[f] = final
 
     optimise_svg()
 
@@ -297,7 +329,7 @@ def gallery_html():
 
         tiles.append(
             f'<figure class="tile"><a href="#{fid}">'
-            f'<img src="img/{esc(x["file"])}" alt="{alt}" loading="lazy" '
+            f'<img src="{img(x["file"])}" alt="{alt}" loading="lazy" '
             f'decoding="async" width="600" height="600">{badge}'
             f'<span class="more" aria-hidden="true">+</span></a></figure>'
         )
@@ -305,7 +337,7 @@ def gallery_html():
             f'<div class="lb" id="{fid}">'
             f'<a class="lb-back" href="#work" aria-label="Close"></a>'
             f'<div class="lb-card" role="dialog" aria-label="{alt}">'
-            f'<img src="img/{esc(x["file"])}" alt="{alt}" width="1200" height="1200">'
+            f'<img src="{img(x["file"])}" alt="{alt}" width="1200" height="1200">'
             f'<div class="lb-copy">{tag}<p class="lb-note">{esc(x["note"])}</p>'
             f'<a class="lb-x" href="#work">Close</a></div></div></div>'
         )
@@ -325,7 +357,7 @@ def about_html():
         body += hold("Qualifications and insurer", "for the about section")
 
     if p:
-        pic = (f'<figure class="portrait"><img src="img/{esc(p["file"])}" '
+        pic = (f'<figure class="portrait"><img src="{img(p["file"])}" '
                f'alt="{H.escape(p["alt"])}" loading="lazy" decoding="async" '
                f'width="560" height="700"></figure>')
     else:

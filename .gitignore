@@ -15,3 +15,8 @@ __pycache__/
 .dev.vars
 .env
 *.local
+
+# Workers Assets rejects absolute URLs here (code 100324) and it has killed
+# a deploy once. build_site.py deletes it; this makes sure a stray copy can
+# never be committed again. worker.js does the www redirect.
+public/_redirects

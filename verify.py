@@ -258,10 +258,13 @@ def _mad(a, b):
 stamped, weakest = 0, None
 for entry in _C.OUTSTANDING['gallery']:
     f = entry['file']
-    master_p, built_p = pathlib.Path('photos') / f, pathlib.Path('public/img') / f
-    if not built_p.exists():
-        fails.append(f"public/img/{f} was never built")
+    master_p = pathlib.Path('photos') / f
+    stem, suffix = f.rsplit('.', 1)
+    hits = sorted(pathlib.Path('public/img').glob(f'{stem}.*.{suffix}'))
+    if len(hits) != 1:
+        fails.append(f"expected exactly one published {stem}.<hash>.{suffix}, found {len(hits)}")
         continue
+    built_p = hits[0]
     master = Image.open(master_p).convert('RGB')
     built = Image.open(built_p).convert('RGB')
     corner = max(_mad(a, b) for a, b in zip(_corners(master), _corners(built)))
@@ -278,8 +281,10 @@ for entry in _C.OUTSTANDING['gallery']:
 
 p = _C.OUTSTANDING.get('portrait')
 if p:
+    pstem, psuf = p['file'].rsplit('.', 1)
+    phits = sorted(pathlib.Path('public/img').glob(f'{pstem}.*.{psuf}'))
     a = Image.open(pathlib.Path('photos') / p['file']).convert('RGB')
-    b = Image.open(pathlib.Path('public/img') / p['file']).convert('RGB')
+    b = Image.open(phits[0]).convert('RGB') if phits else a
     if max(_mad(x, y) for x, y in zip(_corners(a), _corners(b))) >= STAMP_FLOOR:
         fails.append("the portrait has been watermarked — it is Maddy's own face "
                      "on her own site and should not carry a stamp")
@@ -288,6 +293,33 @@ if stamped:
           f"{STAMP_FLOOR} floor), portrait left clean")
 else:
     print("✗ no gallery photograph carries a watermark")
+
+# 6d. every photograph the page links to must carry a hash of its own bytes.
+#     They are served max-age=31536000, immutable — a promise that the bytes
+#     behind the URL never change. Under fixed filenames that promise was
+#     false: nineteen photographs were rewritten under the names they already
+#     had, so any cache holding the old copy would serve it for a year. This
+#     recomputes the hash from the published file and fails if the name does
+#     not match, because a stale photograph on a launched site is invisible
+#     from here — it looks fine to whoever deployed it and wrong to everyone
+#     whose edge kept the old one.
+import hashlib
+linked = set(re.findall(r'src="(img/[^"]+\.jpg)"', html))
+if not linked:
+    fails.append("no photographs are linked from the page at all")
+for rel in sorted(linked):
+    f = pathlib.Path('public') / rel
+    if not f.exists():
+        fails.append(f"page links {rel}, which was not published")
+        continue
+    parts = f.stem.rsplit('.', 1)
+    if len(parts) != 2 or len(parts[1]) != 8:
+        fails.append(f"{rel} has no content hash in its name, but is served immutable")
+        continue
+    want = hashlib.sha256(f.read_bytes()).hexdigest()[:8]
+    if parts[1] != want:
+        fails.append(f"{rel} is named for hash {parts[1]} but its bytes hash to {want}")
+print(f"✓ {len(linked)} photographs carry a hash of their own bytes (safe to serve immutable)")
 
 # 7. title and description must survive Google's truncation
 title, desc = C.SEO['title'], C.SEO['description']

@@ -11,11 +11,36 @@ import { sync, injectGallery, serveMedia } from './instagram.js';
 
 const CANONICAL = 'nailsbymaddy.co.uk';
 
-/** Content-addressed assets can cache hard; HTML must not. */
+/**
+ * Content-addressed assets can cache hard; HTML must not.
+ *
+ * Photographs are published with a hash of their bytes in the filename, so
+ * `immutable` for a year is a promise we can actually keep: change the
+ * picture and it is a different URL. Under fixed names it was a lie — all
+ * nineteen photographs were rewritten under the names they already had, and
+ * any edge holding the old copy would have served it until 2027.
+ */
 const CACHE = [
   [/\.(woff2|svg|png|jpg|webp|ico)$/i, 'public, max-age=31536000, immutable'],
   [/\.(html?|txt|xml)$/i, 'public, max-age=0, must-revalidate'],
 ];
+
+/**
+ * Keep the HTML out of Cloudflare's own edge cache entirely.
+ *
+ * `max-age=0, must-revalidate` is aimed at browsers and it is right for
+ * them. Cloudflare's edge read `public` and cached the page anyway — and it
+ * strips the query string from the cache key, so even a cache-busting `?x=`
+ * came back HIT. The effect after a deploy is that each datacentre keeps
+ * serving its own stale copy: one person sees the new site, another in a
+ * different city still sees the old one, and nothing about it looks broken.
+ *
+ * Cloudflare-CDN-Cache-Control is read only by their edge and overrides the
+ * line above for it alone, so browsers keep revalidating exactly as before
+ * and the CDN stops holding the page. The site is one small document; there
+ * is nothing to gain by caching it at the edge and a stale launch to lose.
+ */
+const NO_EDGE_CACHE = /\.(html?|txt|xml)$/i;
 
 const SECURITY = {
   'x-content-type-options': 'nosniff',
@@ -58,6 +83,13 @@ export default {
 
     const rule = CACHE.find(([re]) => re.test(url.pathname));
     out.headers.set('cache-control', rule ? rule[1] : 'public, max-age=0, must-revalidate');
+
+    // The home page is '/' — no extension — so test the path for a document
+    // by exclusion rather than by suffix, or the one page that matters most
+    // is the one that keeps getting cached.
+    const isDoc = NO_EDGE_CACHE.test(url.pathname) || !/\.[a-z0-9]+$/i.test(url.pathname);
+    if (isDoc) out.headers.set('cloudflare-cdn-cache-control', 'no-store');
+
     return out;
   },
 
