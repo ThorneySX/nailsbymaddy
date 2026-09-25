@@ -153,14 +153,27 @@ def services():
 
 def price_html():
     sv, out = services(), []
-    for group, items in C.GROUPS:
+    for group, blurb, items in C.GROUPS:
         rows = "".join(
             f'<div class="row"><dt>{esc(label)}'
             f'<span class="dur">{esc(sv[key]["dur"])}</span></dt>'
             f'<dd>{esc(sv[key]["price"].replace(".00", ""))}</dd></div>'
             for key, label in items
         )
-        out.append(f'<h3 class="grp">{esc(group)}</h3><dl class="prices">{rows}</dl>')
+        out.append(f'<h3 class="grp">{esc(group)}</h3>'
+                   f'<p class="grp-note">{esc(blurb)}</p>'
+                   f'<dl class="prices">{rows}</dl>')
+
+    # What she uses, and the line that lets a nervous client book.
+    pr = C.PRODUCTS
+    out.append(
+        f'<div class="products">'
+        f'<h3>{esc(pr["heading"])}</h3>'
+        f'<p>{esc(pr["body"])}</p>'
+        f'<p class="hema">{esc(pr["highlight"])}</p>'
+        f'<p class="aside">{esc(pr["aside"])}</p>'
+        f'</div>'
+    )
     return "".join(out)
 
 
@@ -396,7 +409,7 @@ def schema():
     b = C.BUSINESS
     sv = services()
     offers = []
-    for group, items in C.GROUPS:
+    for group, _blurb, items in C.GROUPS:
         for key, label in items:
             s = sv[key]
             offers.append({
@@ -582,7 +595,25 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
   letter-spacing:.11em;text-transform:uppercase;color:var(--pink-ink);
   margin:2rem 0 .6rem}
 .grp:first-of-type{margin-top:0}
+/* One line under each heading. Tight to it, so it reads as part of the
+   heading rather than as the first item in the list. */
+.grp-note{margin:0 0 .85rem;color:var(--ink-60);font-size:.94rem;
+  line-height:1.5;max-width:54ch}
 .prices,.hours{margin:0}
+
+/* ---- what she uses ---- */
+.products{margin-top:2.4rem;padding-top:1.6rem;border-top:1px solid var(--line)}
+.products h3{font-family:Outfit,sans-serif;font-weight:700;font-size:.82rem;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--pink-ink);
+  margin:0 0 .7rem}
+.products p{margin:0 0 .9rem;color:var(--ink-60);line-height:1.6;max-width:62ch}
+/* The HEMA line is set apart on purpose: it is the sentence that decides
+   whether someone who has reacted to gel before feels able to book at all.
+   Buried in a paragraph it is a detail; in its own block it is an answer. */
+.products .hema{background:var(--blush);border-left:3px solid var(--pink);
+  border-radius:0 10px 10px 0;padding:.9rem 1.1rem;margin:0 0 .9rem;
+  color:var(--ink);font-weight:600}
+.products .aside{font-size:.9rem;margin-bottom:0}
 .hours .season{font-weight:400;color:var(--muted);font-size:.86em;white-space:nowrap}
 .row{display:flex;align-items:baseline;gap:.6rem;padding:.6rem 0;
   border-bottom:1px solid var(--line)}

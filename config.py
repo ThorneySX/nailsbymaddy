@@ -254,9 +254,16 @@ REVIEWS = [
 ]
 
 # Prices come from services.json — the live booking menu — grouped for reading.
-# (raw title in services.json, name shown on the site)
+# (group heading, one-line description, [(raw title in services.json, name shown)])
+#
+# The description exists because a price list without one makes the reader do
+# the work: "Overlays & extensions" tells someone who already knows what they
+# want nothing they did not know, and tells a first-timer nothing at all. One
+# sentence under each heading is the difference between a menu and a list.
 GROUPS = [
-    ("Gel manicures & pedicures", [
+    ("Gel manicures & pedicures",
+     "Colour on your own nails, soaked off cleanly when you are ready. "
+     "No overlay, no extensions.", [
         ("Gel Manicure- Natural Nails", "Gel manicure"),
         ("Gel Manicure & Removal- Natural Nails", "Gel manicure & removal"),
         ("Gel Pedicure- Natural nails", "Gel pedicure"),
@@ -264,7 +271,9 @@ GROUPS = [
         ("Gel Manicure & Pedicure Combination- Natural Nails", "Gel manicure & pedicure"),
         ("Gel Manicure & Pedicure with removals- Natural Nails", "Gel mani & pedi, with removals"),
     ]),
-    ("Overlays & extensions", [
+    ("Overlays & extensions",
+     "Hard gel or builder gel over the natural nail for strength, or added "
+     "length where you want it.", [
         ("Natural Nail Overlays- Builder Gel", "Builder gel overlays"),
         ("Natural Nail Overlays-Builder Gel- Infill", "Builder gel infill"),
         ("Natural Nail overlays- Hard Gel", "Hard gel overlays"),
@@ -272,19 +281,51 @@ GROUPS = [
         ("Hard Gel Extensions", "Hard gel extensions"),
         ("Non standard acryclic removal", "Removal of another salon's acrylics"),
     ]),
-    ("Spa pedicures", [
+    ("Spa pedicures",
+     "A full foot treatment rather than a polish change, using medical-grade "
+     "Footlogix and Margaret Dabbs products.", [
         ("Spa Pedicure- Natural Nails", "Spa pedicure"),
         ("Spa pedicure & removal- Natural Nails", "Spa pedicure & removal"),
         ("Spa Pedicure & Manicure- Natural Nails", "Spa pedicure & manicure"),
         ("Spa Pedicure & Manicure with removal- Natural Nails", "Spa pedi & mani, with removal"),
         ("Men’s Pedicure", "Men's pedicure"),
     ]),
-    ("Nail art — added to any service", [
+    ("Nail art — added to any service",
+     "Priced by how long it takes, from a simple French through to hand-painted "
+     "line work and sculpted 3D.", [
         ("Nail Art- Level 1- 15mins- Add on", "Level 1 — French, ombré, minimal"),
         ("Nail Art Level 2- 30 mins- Add on", "Level 2 — intricate art"),
         ("Nail Art Level 3- Add on", "Level 3 — line work, watercolour, 3D"),
     ]),
 ]
+
+# The products she uses, in her words. This sits with the prices because the
+# first question a careful client asks is what is going on their nails, and the
+# second is whether it will set them off.
+#
+# The brand names are set in type, never as their logos: Twenty Pro and
+# American Creator are other companies' trademarks and we do not hold their
+# artwork. Naming the products you use is ordinary and factual; redrawing
+# someone's logo is not.
+PRODUCTS = {
+    "heading": "What I use",
+    "body": (
+        "Professional hard gel systems from Twenty Pro — SCULPT and BOOST, in "
+        "both bottled and pot formulas — and American Creator Framework Gel. "
+        "Less flexibility, which is what allows maximum strength. Builder gel "
+        "and other bases are available too."
+    ),
+    # Set apart on the page and on the printed list. It is the line that makes
+    # someone who has reacted before feel able to book at all.
+    "highlight": (
+        "HEMA and HEMA-free products are available, to tailor to every nail "
+        "type and sensitivity."
+    ),
+    "aside": (
+        "Any questions about products or services — message me on WhatsApp or "
+        "Instagram, or email hello@nailsbymaddy.co.uk."
+    ),
+}
 
 SEO = {
     # "Westcliff-on-Sea" alone was costing us the town that actually gets

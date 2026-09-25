@@ -33,7 +33,7 @@ else:
 src = {s['title']: s for s in json.loads(pathlib.Path('services.json').read_text())}
 offers = {o['itemOffered']['name']: o['price'] for o in ld['hasOfferCatalog']['itemListElement']}
 n = 0
-for group, items in C.GROUPS:
+for group, _blurb, items in C.GROUPS:
     for key, label in items:
         want = src[key]['price'].replace('£','').replace('.00','')
         if offers.get(label) != want:
@@ -46,7 +46,7 @@ print(f"✓ schema type {ld['@type']}, {len(offers)} offers, "
       f"aggregateRating present: {'aggregateRating' in ld}")
 
 # 2. every service in services.json is on the page (nothing silently dropped)
-listed = {k for _, items in C.GROUPS for k, _ in items}
+listed = {k for _, _b, items in C.GROUPS for k, _ in items}
 missing = set(src) - listed
 if missing: fails.append(f"services not shown anywhere: {missing}")
 else: print(f"✓ all {len(src)} services from the booking menu are listed")
@@ -320,6 +320,33 @@ for rel in sorted(linked):
     if parts[1] != want:
         fails.append(f"{rel} is named for hash {parts[1]} but its bytes hash to {want}")
 print(f"✓ {len(linked)} photographs carry a hash of their own bytes (safe to serve immutable)")
+
+# 6e. the price list must read as a menu, not a list: a heading with no
+#     sentence under it tells a first-timer nothing, and the products block
+#     is where the two questions a careful client actually asks get answered
+#     — what is going on my nails, and will it set me off.
+for group, blurb, _items in C.GROUPS:
+    if not blurb.strip():
+        fails.append(f"price group {group!r} has no description")
+    elif blurb[:40] not in html:
+        fails.append(f"description for {group!r} is not on the page")
+pr = C.PRODUCTS
+for key in ('heading', 'body', 'highlight', 'aside'):
+    if not pr.get(key, '').strip():
+        fails.append(f"PRODUCTS[{key!r}] is empty")
+    elif pr[key][:40] not in html:
+        fails.append(f"PRODUCTS[{key!r}] is not rendered on the page")
+# The HEMA line must keep its own block. Folded into a paragraph it stops
+# being an answer and goes back to being a detail.
+if 'class="hema"' not in html:
+    fails.append("the HEMA / HEMA-free line has lost its highlighted block")
+# Products she does not use must never appear as hers — BIAB is The Gel
+# Bottle Inc's trademark and the first FAQ exists to explain the difference.
+for brand in ('Twenty Pro', 'American Creator'):
+    if brand not in html:
+        fails.append(f"{brand} is not named anywhere on the page")
+print(f"✓ {len(C.GROUPS)} price groups each carry a description; "
+      f"products block and HEMA highlight both render")
 
 # 7. title and description must survive Google's truncation
 title, desc = C.SEO['title'], C.SEO['description']
