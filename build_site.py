@@ -28,6 +28,11 @@ NODE = ROOT / "node_modules/@fontsource"
 # runs before any HTML is built.
 ASSETS = {}
 
+# Published names for the three brand images a search engine actually reads.
+LOGO       = "img/nails-by-maddy-logo.svg"
+LOGO_WHITE = "img/nails-by-maddy-logo-white.svg"
+SHARE      = "img/nails-by-maddy-nail-technician-westcliff-southend.png"
+
 
 def img(name):
     """The published path for a photograph, with its content hash."""
@@ -53,12 +58,18 @@ def copy_assets():
             shutil.copy(src, PUB / "fonts" / src.name)
 
     for name, dest in [
-        ("nailsbymaddy-logo-primary.svg", "img/logo.svg"),
-        ("nailsbymaddy-logo-reversed.svg", "img/logo-reversed.svg"),
+        # Published names are keyword-bearing where a search engine will ever
+        # read them, and conventional where a BROWSER looks them up by path.
+        # favicon.png and apple-touch-icon.png stay put: Safari and assorted
+        # crawlers probe those exact paths, and no one has ever searched for a
+        # favicon. The logo and the share card are different — both surface in
+        # image search and in link previews.
+        ("nailsbymaddy-logo-primary.svg", LOGO),
+        ("nailsbymaddy-logo-reversed.svg", LOGO_WHITE),
         ("nailsbymaddy-icon-32.png", "favicon.png"),
         ("nailsbymaddy-icon-180.png", "apple-touch-icon.png"),
-        ("nailsbymaddy-icon-512.png", "img/icon-512.png"),
-        ("nailsbymaddy-profile-badge.png", "img/share.png"),
+        ("nailsbymaddy-icon-512.png", "img/nails-by-maddy-icon-512.png"),
+        ("nailsbymaddy-profile-badge.png", SHARE),
     ]:
         shutil.copy(BRAND / name, PUB / dest)
 
@@ -135,7 +146,7 @@ def optimise_svg():
         print(f"  (svg optimisation skipped: {type(e).__name__})")
 
 
-def logo_img(file="img/logo.svg", cls="logo", eager=True):
+def logo_img(file=LOGO, cls="logo", eager=True):
     """
     The wordmark is outlined type — 37 KB of path data. Inlining two of those
     would put 74 KB of SVG in front of the parser, so they stay as files:
@@ -216,30 +227,48 @@ def icon(kind):
             f'aria-hidden="true">{ICONS[kind]}</svg>')
 
 
-def actions():
-    """
-    Book online / WhatsApp / Call, in that order — but only the ones that exist,
-    and whichever is first becomes the primary button.
+def book_href():
+    """Where "Book Now" actually sends someone, today.
 
-    Order is deliberate. Booking online is the least friction and works at
-    midnight, so it leads whenever there is a system to point at. Until then
-    WhatsApp leads: most people would rather message a nail tech than ring one,
-    and it leaves her a written record of what they asked for. Calling comes
-    last but never goes away — it is the only one that works for someone who
-    doesn't use WhatsApp.
+    The booking system is an open commercial question — Maddy books through
+    Kizuri's Ovatu account, so the booking record and the client relationship
+    sit with the salon rather than with her. Until that is settled, the button
+    says Book Now and opens WhatsApp, which is a channel she owns and which
+    leaves her a written record of what was asked for.
+
+    Fill OUTSTANDING["booking_url"] and the same button repoints itself. The
+    label does not change, because the visitor's intent never did.
     """
     b, o = C.BUSINESS, C.OUTSTANDING
-    out = []
-
     if o["booking_url"]:
-        out.append(("book", esc(o["booking_url"]), "Book online", "Book an appointment online"))
+        return o["booking_url"]
+    from urllib.parse import quote
+    return f'https://wa.me/{b["whatsapp"]}?text={quote(b["whatsapp_msg"])}'
 
-    if b.get("whatsapp"):
+
+def actions():
+    """
+    Book Now first, WhatsApp second — and WhatsApp only once Book Now points
+    somewhere else, or the page would carry the same link twice.
+
+    THE CALL BUTTON WAS REMOVED, deliberately, on 25 Sept 2026. It used to be
+    the permanent last option on the grounds that it is the only one that
+    works for someone who does not use WhatsApp. Three buttons offering two
+    destinations asked the visitor to make our unresolved decision for us; one
+    button that says the thing they came to do does not.
+
+    The number has NOT gone. It stays in the footer, in the 404 page and in
+    `telephone` in the structured data, because Google matches the site's NAP
+    against the Google Business Profile and a site with no phone number on it
+    is a weaker local result, not a tidier one.
+    """
+    b, o = C.BUSINESS, C.OUTSTANDING
+    out = [("book", book_href(), "Book Now", "Book an appointment with Maddy")]
+
+    if o["booking_url"] and b.get("whatsapp"):
         from urllib.parse import quote
         href = f'https://wa.me/{b["whatsapp"]}?text={quote(b["whatsapp_msg"])}'
         out.append(("whatsapp", href, "WhatsApp", "Message Maddy on WhatsApp"))
-
-    out.append(("call", f'tel:{b["phone_e164"]}', "Call", f'Ring Maddy on {b["phone"]}'))
     return out
 
 
@@ -439,13 +468,66 @@ def reviews_html():
 
 # ------------------------------------------------------------------ metadata
 
+def image_objects():
+    """One ImageObject per photograph, so Google Images has something to read.
+
+    A filename and an alt attribute are all a crawler gets from the markup.
+    An ImageObject adds the caption, the description, who took it and who owns
+    it — which is what Google's image guidance asks for and what makes a
+    photograph eligible to be shown with attribution rather than as an orphan
+    thumbnail. It is also the only place the licence position is stated.
+    """
+    out = []
+    for x in C.OUTSTANDING["gallery"]:
+        url = f"{C.SITE_URL}/{img(x['file'])}"
+        out.append({
+            "@type": "ImageObject",
+            "@id": f"{C.SITE_URL}/#image-{x['file'].rsplit('.', 1)[0]}",
+            "contentUrl": url,
+            "url": url,
+            # The gallery panel this photograph opens, so the entity points at
+            # a real fragment of a real page rather than at the file alone.
+            "mainEntityOfPage": {"@id": f"{C.SITE_URL}/#webpage"},
+            "name": x["alt"],
+            "caption": x["alt"],
+            "description": x["note"],
+            "creator": {"@id": f"{C.SITE_URL}/#maddy"},
+            "copyrightNotice": f"© {_dt.date.today().year} {C.BUSINESS['name']}",
+            "creditText": C.BUSINESS["name"],
+            "acquireLicensePage": f"{C.SITE_URL}/#find",
+            "representativeOfPage": False,
+            "width": 1200, "height": 1200,
+        })
+    pt = C.OUTSTANDING.get("portrait")
+    if pt:
+        url = f"{C.SITE_URL}/{img(pt['file'])}"
+        out.append({
+            "@type": "ImageObject",
+            "@id": f"{C.SITE_URL}/#portrait",
+            "contentUrl": url, "url": url,
+            "name": pt["alt"], "caption": pt["alt"],
+            "creator": {"@id": f"{C.SITE_URL}/#maddy"},
+            "copyrightNotice": f"© {_dt.date.today().year} {C.BUSINESS['name']}",
+            "creditText": C.BUSINESS["name"],
+            "representativeOfPage": True,
+        })
+    return out
+
+
 def schema():
     """
+    One @graph, cross-referenced by @id, rather than a pile of unrelated
+    islands. Google reads either, but the graph is the version that tells it
+    these are all the SAME business, the SAME page and the SAME person — which
+    is the whole point of publishing it for a one-page local site.
+
     NailSalon, not LocalBusiness — the more specific type wins.
-    No aggregateRating: one review isn't a rating, and self-serving review
-    markup breaks Google's guidelines.
+    No aggregateRating: one review is not a rating, and self-serving review
+    markup breaks Google's guidelines. For the same reason there is no
+    `review` property either; a first-party review on your own business does
+    not earn a rich result and it does invite a manual action.
     """
-    b = C.BUSINESS
+    b, cr = C.BUSINESS, C.CREDIT
     sv = services()
     offers = []
     for group, _blurb, items in C.GROUPS:
@@ -453,23 +535,32 @@ def schema():
             s = sv[key]
             offers.append({
                 "@type": "Offer",
-                "itemOffered": {"@type": "Service", "name": label, "category": group},
+                "itemOffered": {
+                    "@type": "Service",
+                    "name": label,
+                    "category": group,
+                    "provider": {"@id": f"{C.SITE_URL}/#business"},
+                    "areaServed": {"@type": "City", "name": "Southend-on-Sea"},
+                },
                 "price": s["price"].replace("£", "").replace(".00", ""),
                 "priceCurrency": "GBP",
+                "url": f"{C.SITE_URL}/#prices",
+                "availability": "https://schema.org/InStock",
             })
 
-    d = {
-        "@context": "https://schema.org",
+    business = {
         "@type": "NailSalon",
         "@id": f"{C.SITE_URL}/#business",
         "name": b["name"],
         "url": C.SITE_URL + "/",
         "telephone": b["phone_e164"],
         "email": b["email"],
+        "description": C.SEO["description"],
+        "logo": {"@id": f"{C.SITE_URL}/#logo"},
         # The share card first, then the real photographs. Google reads
         # `image` for the knowledge panel and for image search, and nineteen
         # pieces of her own work say more than one generic card.
-        "image": ([f"{C.SITE_URL}/img/share.png"] +
+        "image": ([f"{C.SITE_URL}/{SHARE}"] +
                   [f"{C.SITE_URL}/{img(x['file'])}" for x in C.OUTSTANDING["gallery"]]),
         "priceRange": "££",
         "currenciesAccepted": "GBP",
@@ -482,9 +573,19 @@ def schema():
             "postalCode": b["postcode"],
             "addressCountry": b["country"],
         },
+        # ONS postcode centroid — see the note in config.BUSINESS. Publishing a
+        # point that is a few metres out is worth far more than publishing none,
+        # because it is what lets Google reconcile this page with the map pin.
+        "geo": {"@type": "GeoCoordinates",
+                "latitude": b["lat"], "longitude": b["lon"]},
+        "hasMap": b["maps"],
         "areaServed": [{"@type": "City", "name": n}
                        for n in ("Westcliff-on-Sea", "Southend-on-Sea", "Leigh-on-Sea", "Chalkwell")],
         "sameAs": [f"https://www.instagram.com/{b['instagram']}/", b["maps"]],
+        "founder": {"@id": f"{C.SITE_URL}/#maddy"},
+        "employee": {"@id": f"{C.SITE_URL}/#maddy"},
+        "knowsAbout": ["Gel nails", "Builder gel", "Hard gel overlays",
+                       "Nail art", "Spa pedicures", "Natural nail care"],
         "hasOfferCatalog": {
             "@type": "OfferCatalog",
             "name": "Treatments",
@@ -513,23 +614,126 @@ def schema():
                 row["validFrom"] = start.isoformat()
                 row["validThrough"] = end.isoformat()
             spec.append(row)
-        d["openingHoursSpecification"] = spec
-    if C.OUTSTANDING["booking_url"]:
-        d["potentialAction"] = {
-            "@type": "ReserveAction",
-            "target": {"@type": "EntryPoint", "urlTemplate": C.OUTSTANDING["booking_url"]},
+        business["openingHoursSpecification"] = spec
+
+    # Book Now is a real reservation entry point whether it lands on a booking
+    # system or on WhatsApp, so the action is published either way and follows
+    # whatever the button does. It was previously omitted entirely while
+    # booking_url was empty, which meant the one action the page exists for
+    # was the one thing the markup did not mention.
+    business["potentialAction"] = {
+        "@type": "ReserveAction",
+        "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": book_href(),
+            "actionPlatform": [
+                "https://schema.org/DesktopWebPlatform",
+                "https://schema.org/MobileWebPlatform",
+            ],
+        },
+        "result": {"@type": "Reservation", "name": "Nail appointment"},
+    }
+
+    maddy = {
+        "@type": "Person",
+        "@id": f"{C.SITE_URL}/#maddy",
+        "name": b["person"],
+        "jobTitle": "Nail Technician",
+        "worksFor": {"@id": f"{C.SITE_URL}/#business"},
+        "image": {"@id": f"{C.SITE_URL}/#portrait"},
+        "url": C.SITE_URL + "/#about",
+        "knowsAbout": ["Gel nails", "Builder gel", "Hard gel", "Nail art",
+                       "Natural nail care"],
+        "sameAs": [f"https://www.instagram.com/{b['instagram']}/"],
+    }
+    if C.OUTSTANDING.get("qualifications"):
+        # Her own words, as given. The awarding body is deliberately absent
+        # because she has not named one — see the note in config.
+        maddy["hasCredential"] = {
+            "@type": "EducationalOccupationalCredential",
+            "credentialCategory": C.OUTSTANDING["qualifications"],
         }
+
+    logo = {
+        "@type": "ImageObject",
+        "@id": f"{C.SITE_URL}/#logo",
+        "url": f"{C.SITE_URL}/{LOGO}",
+        "contentUrl": f"{C.SITE_URL}/{LOGO}",
+        "caption": b["name"],
+    }
+
+    builder = {
+        "@type": "Organization",
+        "@id": f"{C.SITE_URL}/#builder",
+        "name": cr["builder"],
+        "url": cr["builder_url"],
+        "parentOrganization": {"@id": f"{C.SITE_URL}/#builder-parent"},
+    }
+    parent = {
+        "@type": "Organization",
+        "@id": f"{C.SITE_URL}/#builder-parent",
+        "name": cr["parent"],
+        "url": cr["parent_url"],
+    }
+
+    website = {
+        "@type": "WebSite",
+        "@id": f"{C.SITE_URL}/#website",
+        "url": C.SITE_URL + "/",
+        "name": b["name"],
+        "inLanguage": "en-GB",
+        "publisher": {"@id": f"{C.SITE_URL}/#business"},
+        "creator": {"@id": f"{C.SITE_URL}/#builder"},
+        # No SearchAction. There is no site search to point one at, and
+        # declaring one that does not exist is how you get a sitelinks
+        # searchbox that 404s.
+    }
+
+    # A one-page site has no hierarchy, so this breadcrumb has exactly one
+    # rung and Google will not draw it in the result. It is published because
+    # it is valid, costs nothing and is already wired to the WebPage — the
+    # moment there is a second page it becomes real. Do not pad it with
+    # section anchors to make it look busier: fragments are not pages, and a
+    # breadcrumb that lies is worse than one that is short.
+    breadcrumb = {
+        "@type": "BreadcrumbList",
+        "@id": f"{C.SITE_URL}/#breadcrumb",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Home",
+             "item": C.SITE_URL + "/"},
+        ],
+    }
+
+    webpage = {
+        "@type": "WebPage",
+        "@id": f"{C.SITE_URL}/#webpage",
+        "url": C.SITE_URL + "/",
+        "name": C.SEO["title"],
+        "description": C.SEO["description"],
+        "inLanguage": "en-GB",
+        "isPartOf": {"@id": f"{C.SITE_URL}/#website"},
+        "about": {"@id": f"{C.SITE_URL}/#business"},
+        "primaryImageOfPage": {"@id": f"{C.SITE_URL}/#portrait"},
+        "breadcrumb": {"@id": f"{C.SITE_URL}/#breadcrumb"},
+        "datePublished": "2026-09-14",
+        "dateModified": _dt.date.today().isoformat(),
+    }
+
     faq = {
-        "@context": "https://schema.org",
         "@type": "FAQPage",
+        "@id": f"{C.SITE_URL}/#faq-schema",
+        "mainEntityOfPage": {"@id": f"{C.SITE_URL}/#webpage"},
         "mainEntity": [{
             "@type": "Question",
             "name": q,
             "acceptedAnswer": {"@type": "Answer", "text": a},
         } for q, a in C.FAQS],
     }
-    # Two graphs in one script — valid, and keeps the head tidy.
-    return json.dumps([d, faq], ensure_ascii=False, separators=(",", ":"))
+
+    graph = [business, maddy, logo, website, webpage, breadcrumb, faq,
+             builder, parent] + image_objects()
+    return json.dumps({"@context": "https://schema.org", "@graph": graph},
+                      ensure_ascii=False, separators=(",", ":"))
 
 
 # ----------------------------------------------------------------------- CSS
@@ -590,7 +794,12 @@ a{color:var(--pink-ink)}
    half again as wide. A sticky header costs the same height on every screen,
    which on a phone is the scarcest thing there is. */
 .logo{width:clamp(150px,40vw,190px);height:auto;display:block}
-.head-in .btn{padding:.5rem .95rem;font-size:.88rem}
+/* min-height, not more padding. Measured at 390px the header button came
+   out 43.2px — eight tenths of a pixel under the 44px target size, which
+   is the sort of miss no eye catches and every thumb does. Padding alone
+   was the wrong lever: it would have grown the sticky bar on every screen
+   to fix a shortfall on one. */
+.head-in .btn{padding:.5rem .95rem;font-size:.88rem;min-height:44px}
 .head-right{display:flex;align-items:center;gap:.6rem}
 
 /* ---- section nav, no JavaScript ----
@@ -851,7 +1060,7 @@ FONT_FACES = """
 def build():
     PUB.mkdir(parents=True, exist_ok=True)
     copy_assets()
-    b, o = C.BUSINESS, C.OUTSTANDING
+    b, o, cr = C.BUSINESS, C.OUTSTANDING, C.CREDIT
 
     # DRAFT no longer paints a banner across the top. It still does the work
     # that matters — noindex, placeholders for missing content, and hiding
@@ -861,6 +1070,9 @@ def build():
     #
     # Which means the ONLY remaining signal that this is a draft is the
     # noindex tag. Check config.DRAFT before assuming the site is live.
+    from PIL import Image as _Im
+    share_w, share_h = _Im.open(PUB / SHARE).size
+
     ribbon = ""
     robots = '<meta name="robots" content="noindex,nofollow">' if C.DRAFT else ""
 
@@ -883,8 +1095,12 @@ def build():
 <meta property="og:title" content="{esc(C.SEO["title"])}">
 <meta property="og:description" content="{H.escape(C.SEO["description"])}">
 <meta property="og:url" content="{C.SITE_URL}/">
-<meta property="og:image" content="{C.SITE_URL}/img/share.png">
+<meta property="og:image" content="{C.SITE_URL}/{SHARE}">
+<meta property="og:image:alt" content="{H.escape(b["name"])} — {H.escape(b["tagline"])}, {esc(b["town"])}">
+<meta property="og:image:width" content="{share_w}">
+<meta property="og:image:height" content="{share_h}">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="{H.escape(b["name"])} — {H.escape(b["tagline"])}, {esc(b["town"])}">
 <link rel="icon" href="favicon.png" sizes="32x32">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preload" href="fonts/outfit-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -993,7 +1209,7 @@ def build():
 
 <footer class="site-foot">
   <div class="wrap">
-    {logo_img("img/logo-reversed.svg")}
+    {logo_img(LOGO_WHITE)}
     <div class="foot-rows">
       <div><a href="tel:{b["phone_e164"]}">{esc(b["phone"])}</a></div>
       <div><a href="mailto:{esc(b["email"])}">{esc(b["email"])}</a></div>
@@ -1001,8 +1217,10 @@ def build():
         @{esc(b["instagram"])}</a></div>
       <div>{esc(b["venue"])}, {esc(b["street"])}, {esc(b["town"])} {esc(b["postcode"])}</div>
     </div>
-    <p class="fine">&copy; 2026 {esc(b["name"])}. Site by
-      <a href="https://wincustomers.co.uk/" rel="noopener">WinCustomers</a>.</p>
+    <p class="fine">&copy; {_dt.date.today().year} {esc(b["name"])}. Site by
+      <a href="{esc(cr["builder_url"])}" rel="noopener">{esc(cr["builder"])}</a>,
+      part of the
+      <a href="{esc(cr["parent_url"])}" rel="noopener">{esc(cr["parent"])}</a>.</p>
   </div>
 </footer>
 </body>
@@ -1022,7 +1240,7 @@ text-align:center;padding:2rem;background:#FCE4EE;color:#141414;
 font:400 1rem/1.6 ui-sans-serif,system-ui,sans-serif}}
 h1{{font-size:1.6rem;margin:0 0 .5rem}}
 a{{color:#B81E67;font-weight:600}}</style></head>
-<body><main><img src="/img/logo.svg" alt="{esc(b["name"])}" width="200" height="93"
+<body><main><img src="/{LOGO}" alt="{esc(b["name"])}" width="200" height="93"
  style="margin:0 auto 1.5rem">
 <h1>That page isn't here</h1>
 <p>Try the <a href="/">home page</a>, or ring Maddy on
@@ -1035,13 +1253,44 @@ a{{color:#B81E67;font-weight:600}}</style></head>
          f"User-agent: *\nAllow: /\n\nSitemap: {C.SITE_URL}/sitemap.xml\n"),
         encoding="utf-8")
 
+    # Sitemap. One URL, because there is one page — and twenty images, which
+    # is the part that earns its keep. The image extension is how Google
+    # Images is told these photographs exist and what each one is; without it
+    # a crawler has a filename and an alt attribute and nothing else.
+    #
+    # changefreq and priority are deliberately absent. Google has said for
+    # years that it ignores both, and a sitemap carrying fields nobody reads
+    # is a sitemap whose accurate fields are harder to trust. lastmod is the
+    # one hint Google does use, so it is the one that is here.
+    # image:title and image:caption are NOT emitted. Google deprecated
+    # image:caption, image:geo_location, image:title and image:license on
+    # 25 May 2022 and stopped reading them that August; <image:loc> is the
+    # only child element the current spec still defines. Sending the rest is
+    # not harmful, it is just noise in a file whose whole job is to be
+    # trusted — and it invites the belief that the caption is doing work.
+    # What each photograph IS gets said in the alt attribute and in the
+    # ImageObject entities in the @graph, both of which Google does read.
+    def _img_entry(url):
+        return (f"      <image:image>\n"
+                f"        <image:loc>{H.escape(url, quote=False)}</image:loc>\n"
+                f"      </image:image>")
+
+    entries = [_img_entry(f"{C.SITE_URL}/{img(x['file'])}") for x in o["gallery"]]
+    pt = o.get("portrait")
+    if pt:
+        entries.insert(0, _img_entry(f"{C.SITE_URL}/{img(pt['file'])}"))
+    entries.insert(0, _img_entry(f"{C.SITE_URL}/{SHARE}"))
+
     (PUB / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        f'  <url><loc>{C.SITE_URL}/</loc>'
-        f'<lastmod>{_dt.date.today().isoformat()}</lastmod>'
-        f'<changefreq>monthly</changefreq>'
-        f'<priority>1.0</priority></url>\n</urlset>\n', encoding="utf-8")
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+        '        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n'
+        '  <url>\n'
+        f'    <loc>{C.SITE_URL}/</loc>\n'
+        f'    <lastmod>{_dt.date.today().isoformat()}</lastmod>\n'
+        + "\n".join(entries) + "\n"
+        '  </url>\n'
+        '</urlset>\n', encoding="utf-8")
 
 
     # ---- _headers and _redirects are deliberately NOT generated ----------
