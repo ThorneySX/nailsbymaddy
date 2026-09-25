@@ -1,0 +1,11 @@
+# Build-time Python dependencies.
+#
+# Cloudflare's build image ships Python but not Pillow, and build_site.py now
+# needs it: the watermark is applied on the way from photos/ to public/img/.
+# Without this the deploy fails at `import PIL` — which is the right failure,
+# but only if something installs it first.
+#
+# cairosvg and fonttools are deliberately NOT here. They are only needed by
+# tools/build_brand_assets.py, which is run by hand when a mark changes; its
+# output is committed, so the deploy never rasterises anything.
+Pillow>=10.0

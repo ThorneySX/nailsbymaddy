@@ -100,6 +100,40 @@ else:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width':390,'height':844})
     pg.goto('file://' + str(pathlib.Path('public/index.html').resolve()))
     pg.wait_for_timeout(1500)
+    # Scroll the whole page before judging images. The gallery is lazy-loaded,
+    # so anything below the fold never starts fetching in a viewport that
+    # never moves — and would be reported broken when it is merely unread.
+    # Scrolling is also what a real visitor does, so this tests the real thing.
+    #
+    # Two things this has to get right, both learned the hard way:
+    #
+    #  1. scrollHeight is re-read every step. The page GROWS as lazy images
+    #     arrive and reserve their space, so a height snapshotted at the top
+    #     stops short of the real bottom. At five photos the shortfall was
+    #     invisible; at fourteen it left the last two unread and reported them
+    #     broken.
+    #  2. The wait afterwards is on the images themselves, not on a stopwatch.
+    #     A fixed timeout is a guess about network and decode speed that gets
+    #     wronger every time the gallery grows.
+    pg.evaluate("""async () => {
+        const pause = ms => new Promise(r => setTimeout(r, ms));
+        let y = 0;
+        for (let guard = 0; guard < 200; guard++) {
+            window.scrollTo(0, y);
+            await pause(120);
+            if (y >= document.body.scrollHeight - window.innerHeight) break;
+            y += window.innerHeight * 0.8;
+        }
+        // Settle at the bottom so the final row is definitely in view, then
+        // wait for every image to finish rather than for a fixed interval.
+        window.scrollTo(0, document.body.scrollHeight);
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline) {
+            if ([...document.images].every(i => i.complete)) break;
+            await pause(100);
+        }
+        window.scrollTo(0, 0);
+    }""")
     broken = pg.evaluate("""() => [...document.images].filter(i=>!i.complete||i.naturalWidth===0)
                                    .map(i=>i.getAttribute('src'))""")
     if broken: fails.append(f"images failed to load: {broken}")
@@ -134,6 +168,126 @@ if C.BUSINESS.get('whatsapp'):
     if C.BUSINESS['whatsapp'].startswith(('0', '+')):
         fails.append("wa.me number must have no leading zero and no +")
 print(f"✓ CTAs: {' → '.join(l for _, l in btns)} (first is primary)")
+
+# 6b. gallery detail panels: one per photograph, every word on the page, and
+#     the level price matching the booking menu rather than a typed-in copy.
+g = C.OUTSTANDING['gallery']
+for i, x in enumerate(g, 1):
+    if not x.get('note', '').strip():
+        fails.append(f"gallery {x['file']} has no note — nothing to show when tapped")
+    if f'id="set-{i}"' not in html:
+        fails.append(f"no detail panel for set-{i} ({x['file']})")
+    if f'href="#set-{i}"' not in html:
+        fails.append(f"set-{i} has a panel but no tile links to it")
+    if x.get('note') and x['note'][:40] not in html:
+        fails.append(f"note not rendered for {x['file']}")
+    lvl = x.get('level')
+    if lvl not in (None, 1, 2, 3):
+        fails.append(f"{x['file']} has level {lvl!r} — must be 1, 2, 3 or None")
+    if lvl:
+        want = src[C.ART_LEVELS[lvl]['service']]['price'].replace('.00', '')
+        if f'{want} added to any service' not in html:
+            fails.append(f"{x['file']} is Level {lvl} but {want} is not shown for it")
+# an orphan panel is as bad as a missing one — it would be dead HTML Google reads
+for stray in re.findall(r'id="set-(\d+)"', html):
+    if int(stray) > len(g):
+        fails.append(f"panel set-{stray} has no photograph behind it")
+lvls = [x.get('level') for x in g]
+print(f"✓ {len(g)} detail panels — {lvls.count(3)}× Level 3, {lvls.count(2)}× Level 2, "
+      f"{lvls.count(1)}× Level 1, {lvls.count(None)}× no art")
+
+# the whole feature depends on there being no JavaScript, because the site's
+# own CSP forbids it. If a script tag ever appears, the CSP will silently
+# kill it and the panels will look broken to everyone but the person who
+# added it.
+if re.search(r'<script(?![^>]*type="application/ld\+json")', html):
+    fails.append("a <script> tag appeared — CSP sets script-src 'none', it will not run")
+
+# 6c. every gallery photograph must carry the watermark, and the portrait
+#     must not. If watermark.py ever fails quietly — a missing brand asset,
+#     a copy that skips the stamp — the images still load and the page still
+#     looks right, so nothing else here would notice.
+#
+#     This measures HOW MUCH the corner changed, not whether it changed at
+#     all. The first version of this check asked "do any pixels differ" and
+#     passed a build whose stamp was a no-op: re-saving a JPEG re-encodes it,
+#     so a handful of pixels differ everywhere even when nothing was drawn.
+#     Measured across the gallery: a real stamp moves the corner 5.3-15.4
+#     mean absolute levels, re-encoding alone moves it 0.00-0.38. The floor
+#     below sits between those.
+#
+#     Re-measured twice since. The mark went white, small and light, and the
+#     signal fell from 15.4 to 4.79; then the mark became the monogram alone
+#     and it fell again. Each time the threshold had to move with it, which
+#     is the standing hazard with a measured check: quieten the thing being
+#     measured and the check keeps passing right up until it silently stops
+#     meaning anything.
+#
+#     It also used to look only at the bottom-right corner. The stamp now
+#     picks whichever corner is clearest, so ten of nineteen moved and this
+#     check failed them all — correctly, on its own stale assumption. It now
+#     scans all four and takes the strongest, with the middle of the frame
+#     as the control, because the mark is never placed there.
+from PIL import Image, ImageChops, ImageStat
+import config as _C
+
+# Measured with the logo in brand colour: signal 9.03-20.33, re-encoding
+# noise up to 0.50. 2.1 is the balance point, unchanged.
+#
+# SEVENTH value. 15.4 -> 4.79 -> 4.35 -> 8.93 -> 8.54 -> 13.20 -> 20.33, as
+# the mark went white, small, to the wordmark, lost its NAILS BY line, got
+# it back at brand size, then went to full brand colour. Not one of those
+# moves made the check fail on its own. That is the trap with a measured
+# threshold: it does not fail when it goes stale, it just quietly stops
+# meaning anything. Re-measure whenever the mark changes.
+STAMP_FLOOR = 2.1
+
+def _corners(im):
+    w, h = im.size
+    cw, ch = int(w * .34), int(h * .26)
+    return [im.crop((w - cw, h - ch, w, h)), im.crop((0, h - ch, cw, h)),
+            im.crop((w - cw, 0, w, ch)),     im.crop((0, 0, cw, ch))]
+
+def _centre(im):
+    w, h = im.size
+    return im.crop((int(w * .3), int(h * .35), int(w * .7), int(h * .65)))
+
+def _mad(a, b):
+    return ImageStat.Stat(ImageChops.difference(a, b)).mean[0]
+
+stamped, weakest = 0, None
+for entry in _C.OUTSTANDING['gallery']:
+    f = entry['file']
+    master_p, built_p = pathlib.Path('photos') / f, pathlib.Path('public/img') / f
+    if not built_p.exists():
+        fails.append(f"public/img/{f} was never built")
+        continue
+    master = Image.open(master_p).convert('RGB')
+    built = Image.open(built_p).convert('RGB')
+    corner = max(_mad(a, b) for a, b in zip(_corners(master), _corners(built)))
+    control = _mad(_centre(master), _centre(built))
+    if corner < STAMP_FLOOR:
+        fails.append(f"{f} is published unwatermarked — no corner moved more than "
+                     f"{corner:.2f}, below the {STAMP_FLOOR} floor")
+    elif corner <= control * 3:
+        fails.append(f"{f} corner moved {corner:.2f} but so did the middle of the "
+                     f"frame ({control:.2f}) — that is re-encoding, not a stamp")
+    else:
+        stamped += 1
+        weakest = corner if weakest is None else min(weakest, corner)
+
+p = _C.OUTSTANDING.get('portrait')
+if p:
+    a = Image.open(pathlib.Path('photos') / p['file']).convert('RGB')
+    b = Image.open(pathlib.Path('public/img') / p['file']).convert('RGB')
+    if max(_mad(x, y) for x, y in zip(_corners(a), _corners(b))) >= STAMP_FLOOR:
+        fails.append("the portrait has been watermarked — it is Maddy's own face "
+                     "on her own site and should not carry a stamp")
+if stamped:
+    print(f"✓ {stamped} gallery photographs watermarked (weakest {weakest:.1f} vs "
+          f"{STAMP_FLOOR} floor), portrait left clean")
+else:
+    print("✗ no gallery photograph carries a watermark")
 
 # 7. title and description must survive Google's truncation
 title, desc = C.SEO['title'], C.SEO['description']

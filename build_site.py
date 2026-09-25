@@ -18,6 +18,7 @@ import config as C
 
 ROOT = Path(__file__).parent
 BRAND = ROOT / "brand"                   # logo masters, vendored
+PHOTOS = ROOT / "photos"                 # Maddy's own photographs, as supplied
 PUB = ROOT / "public"                    # generated — never edit, never committed
 NODE = ROOT / "node_modules/@fontsource"
 
@@ -44,6 +45,30 @@ def copy_assets():
         ("nailsbymaddy-profile-badge.png", "img/share.png"),
     ]:
         shutil.copy(BRAND / name, PUB / dest)
+
+    # Maddy's photographs. Only the ones config actually references are copied,
+    # so a stray file in photos/ cannot end up published by accident, and a
+    # filename that config names but photos/ does not hold fails the build here
+    # rather than shipping a broken image.
+    #
+    # Gallery photographs are watermarked on the way through; photos/ holds
+    # clean masters. The portrait is NOT stamped — it is Maddy's own face on
+    # Maddy's own site, and a watermark there would read as a stock photo,
+    # which is the opposite of what it is for.
+    import watermark
+
+    wanted = [p["file"] for p in C.OUTSTANDING["gallery"]]
+    portrait = C.OUTSTANDING["portrait"]["file"] if C.OUTSTANDING["portrait"] else None
+    if portrait:
+        wanted.append(portrait)
+    for f in wanted:
+        src = PHOTOS / f
+        if not src.exists():
+            raise SystemExit(f"config names photos/{f}, which does not exist")
+        if f == portrait:
+            shutil.copy(src, PUB / "img" / f)
+        else:
+            watermark.stamp_file(src, PUB / "img" / f)
 
     optimise_svg()
 
@@ -184,27 +209,110 @@ def cta(label=None):
             f'{icon(kind)}<span>{esc(label or lab)}</span></a>')
 
 
+def _season_window(name, today):
+    """The real dates of the occurrence of `name` that covers or next follows
+    `today`, and whether it is in force now. Seasons are stored as (month, day)
+    pairs so they repeat; winter wraps the new year, which is the only case
+    worth care."""
+    from datetime import date
+    s = C.SEASONS[name]
+    (sm, sd), (em, ed) = s["start"], s["end"]
+    now, y = (today.month, today.day), today.year
+    if (sm, sd) <= (em, ed):                      # sits inside one year
+        return date(y, sm, sd), date(y, em, ed), (sm, sd) <= now <= (em, ed)
+    if now >= (sm, sd):                           # wraps, and we are past the start
+        return date(y, sm, sd), date(y + 1, em, ed), True
+    return date(y - 1, sm, sd), date(y, em, ed), now <= (em, ed)
+
+
 def hours_html():
     hrs = C.OUTSTANDING["hours"]
     if not hrs:
         return (hold("Opening hours", "her days and times at Kizuri")
                 or '<p class="addr-note">Ring or message to book an appointment.</p>')
-    rows = "".join(
-        f'<div class="row"><dt>{esc(h["day"])}</dt><dd>{esc(h["open"])}–{esc(h["close"])}</dd></div>'
-        for h in hrs
-    )
-    return f'<dl class="hours">{rows}</dl>'
+    # Group by day, keeping the given order, so a day with two seasonal windows
+    # is one row with both rather than the same day appearing twice.
+    order, by_day = [], {}
+    for h in hrs:
+        by_day.setdefault(h["day"], []) or order.append(h["day"])
+        by_day[h["day"]].append(h)
+    rows = []
+    for day in order:
+        parts = []
+        for h in by_day[day]:
+            t = f'{esc(h["open"])}–{esc(h["close"])}'
+            if h.get("season"):
+                t += f' <span class="season">{esc(C.SEASONS[h["season"]]["label"])}</span>'
+            parts.append(t)
+        rows.append(f'<div class="row"><dt>{esc(day)}</dt>'
+                    f'<dd>{"<br>".join(parts)}</dd></div>')
+    return f'<dl class="hours">{"".join(rows)}</dl>'
+
+
+def art_price(level):
+    """The add-on price for an art level, read from the live booking menu.
+
+    Never hard-coded. If Maddy changes what Level 3 costs in her booking
+    system, services.json changes and every photograph that says 'Level 3'
+    follows it. A price typed twice is a price that will disagree with
+    itself eventually.
+    """
+    row = C.ART_LEVELS[level]
+    src = {s["title"]: s for s in json.loads((ROOT / "services.json").read_text())}
+    # Trailing .00 is dropped to match how every other price on the page is
+    # written — the menu says £10, so the photograph says £10.
+    return src[row["service"]]["price"].replace(".00", "")
 
 
 def gallery_html():
+    """The grid, plus one :target panel per photograph.
+
+    Each tile is a link to an anchor; the panel for that anchor is hidden
+    until it is the URL fragment, at which point CSS shows it over the page.
+    No JavaScript — the site's own Content-Security-Policy sets
+    script-src 'none', and it stays that way. Back button closes it, the
+    panels are in the HTML so Google reads every word, and a visitor with
+    CSS off still gets the photographs and the text, just in a long column.
+    """
     g = C.OUTSTANDING["gallery"]
     if not g:
         return hold("Photographs of recent sets", "15–20 of her best, plus a portrait")
-    tiles = "".join(
-        f'<figure class="tile"><img src="img/{esc(x["file"])}" alt="{H.escape(x["alt"])}" '
-        f'loading="lazy" decoding="async" width="600" height="600"></figure>' for x in g
-    )
-    return f'<div class="grid">{tiles}</div>'
+
+    tiles, panels = [], []
+    for i, x in enumerate(g, 1):
+        fid = f"set-{i}"
+        alt = H.escape(x["alt"])
+        lvl = x.get("level")
+
+        if lvl:
+            row = C.ART_LEVELS[lvl]
+            tag = (f'<p class="lvl lvl-{lvl}"><b>{esc(row["label"])}</b> '
+                   f'<span>{esc(row["blurb"])}</span> '
+                   f'<em>{esc(art_price(lvl))} added to any service</em></p>')
+            badge = f'<span class="badge b{lvl}" aria-hidden="true">L{lvl}</span>'
+        else:
+            tag = ('<p class="lvl lvl-0"><b>No art</b> '
+                   '<span>a plain gel colour on natural nails</span></p>')
+            badge = ""
+
+        tiles.append(
+            f'<figure class="tile"><a href="#{fid}">'
+            f'<img src="img/{esc(x["file"])}" alt="{alt}" loading="lazy" '
+            f'decoding="async" width="600" height="600">{badge}'
+            f'<span class="more" aria-hidden="true">+</span></a></figure>'
+        )
+        panels.append(
+            f'<div class="lb" id="{fid}">'
+            f'<a class="lb-back" href="#work" aria-label="Close"></a>'
+            f'<div class="lb-card" role="dialog" aria-label="{alt}">'
+            f'<img src="img/{esc(x["file"])}" alt="{alt}" width="1200" height="1200">'
+            f'<div class="lb-copy">{tag}<p class="lb-note">{esc(x["note"])}</p>'
+            f'<a class="lb-x" href="#work">Close</a></div></div></div>'
+        )
+
+    return (f'<div class="grid">{"".join(tiles)}</div>'
+            f'<p class="grid-hint">Tap any set to see what went into it.</p>'
+            f'{"".join(panels)}')
 
 
 def about_html():
@@ -296,11 +404,28 @@ def schema():
         },
     }
     if C.OUTSTANDING["hours"]:
-        d["openingHoursSpecification"] = [{
-            "@type": "OpeningHoursSpecification",
-            "dayOfWeek": f"https://schema.org/{h['day']}",
-            "opens": h["open"], "closes": h["close"],
-        } for h in C.OUTSTANDING["hours"]]
+        # Only the window actually in force is published. validFrom and
+        # validThrough take real dates rather than recurring ones, so emitting
+        # both seasons would mean emitting one that is wrong today — and wrong
+        # structured data is worse than none. The build stamps the current
+        # occurrence's dates; the next rebuild rolls it over.
+        from datetime import date
+        today = date.today()
+        spec = []
+        for h in C.OUTSTANDING["hours"]:
+            row = {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": f"https://schema.org/{h['day']}",
+                "opens": h["open"], "closes": h["close"],
+            }
+            if h.get("season"):
+                start, end, live = _season_window(h["season"], today)
+                if not live:
+                    continue
+                row["validFrom"] = start.isoformat()
+                row["validThrough"] = end.isoformat()
+            spec.append(row)
+        d["openingHoursSpecification"] = spec
     if C.OUTSTANDING["booking_url"]:
         d["potentialAction"] = {
             "@type": "ReserveAction",
@@ -426,6 +551,7 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
   margin:2rem 0 .6rem}
 .grp:first-of-type{margin-top:0}
 .prices,.hours{margin:0}
+.hours .season{font-weight:400;color:var(--muted);font-size:.86em;white-space:nowrap}
 .row{display:flex;align-items:baseline;gap:.6rem;padding:.6rem 0;
   border-bottom:1px solid var(--line)}
 .row dt{flex:1;margin:0;font-weight:500}
@@ -448,8 +574,48 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
 .grid .tile{margin:0}
 /* tiles link to the post when the gallery comes from Instagram */
 .grid .tile a{display:block;border-radius:12px;overflow:hidden}
-.grid img{border-radius:12px;aspect-ratio:1;object-fit:cover;width:100%}
+.grid img{border-radius:12px;aspect-ratio:1;object-fit:cover;width:100%;display:block}
 @media (min-width:44rem){.grid{grid-template-columns:repeat(3,1fr);gap:1rem}}
+
+/* tiles are links into the :target panels below */
+.grid .tile a{position:relative;display:block;border-radius:12px;overflow:hidden}
+.grid .tile a:focus-visible{outline:3px solid var(--pink);outline-offset:3px}
+.grid .badge{position:absolute;top:.5rem;left:.5rem;z-index:1;
+  font-size:.7rem;font-weight:700;letter-spacing:.04em;line-height:1;
+  padding:.32rem .45rem;border-radius:6px;color:#fff;
+  background:rgba(20,20,22,.62)}
+/* Level 3 is the gold standard, so it is the one that gets gold. */
+.grid .badge.b3{background:linear-gradient(135deg,#a8842c,#d9b355);color:#1a1405}
+.grid .more{position:absolute;right:.5rem;bottom:.5rem;z-index:1;
+  width:26px;height:26px;border-radius:50%;background:rgba(20,20,22,.62);
+  color:#fff;font-size:1rem;line-height:26px;text-align:center;font-weight:600}
+.grid-hint{margin:.9rem 0 0;font-size:.9rem;color:var(--ink-60)}
+
+/* ---- set detail (:target, no JavaScript — CSP sets script-src 'none') ---- */
+.lb{display:none}
+.lb:target{display:flex;position:fixed;inset:0;z-index:50;
+  align-items:center;justify-content:center;padding:1rem}
+/* full-bleed anchor behind the card: tapping the backdrop closes it */
+.lb-back{position:absolute;inset:0;background:rgba(20,20,22,.78)}
+.lb-card{position:relative;z-index:1;background:var(--paper,#fff);
+  border-radius:16px;overflow:auto;max-width:34rem;max-height:92vh;
+  box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.lb-card img{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover}
+.lb-copy{padding:1.1rem 1.2rem 1.3rem}
+.lvl{margin:0 0 .7rem;font-size:.92rem;line-height:1.45}
+.lvl b{display:block;font-size:1rem}
+.lvl span{color:var(--ink-60)}
+.lvl em{display:block;font-style:normal;font-weight:600;margin-top:.2rem}
+.lvl-3 b{color:#8a6a1e}
+.lb-note{margin:0 0 1rem;color:var(--ink-60);line-height:1.6}
+.lb-x{display:inline-block;min-height:44px;line-height:44px;padding:0 1.3rem;
+  border-radius:999px;background:var(--pink);color:#fff;font-weight:600;
+  text-decoration:none}
+@media (min-width:44rem){
+  .lb-card{max-width:52rem;display:grid;grid-template-columns:1fr 1fr}
+  .lb-card img{height:100%}
+  .lb-copy{align-self:center}
+}
 
 /* ---- find ---- */
 .find{display:grid;gap:1.5rem}
