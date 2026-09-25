@@ -103,6 +103,17 @@ def copy_assets():
         tmp.rename(PUB / "img" / final)
         ASSETS[f] = final
 
+    # Supplier marks, copied as supplied. Not watermarked, not recoloured —
+    # they are other companies' trademarks and we alter nothing about them.
+    sup_src = BRAND / "suppliers"
+    if sup_src.is_dir():
+        (PUB / "img" / "suppliers").mkdir(parents=True, exist_ok=True)
+        for x in C.PRODUCTS.get("suppliers", []):
+            f = sup_src / x["file"]
+            if not f.exists():
+                raise SystemExit(f"config names a supplier mark that is missing: {f}")
+            shutil.copy(f, PUB / "img" / "suppliers" / x["file"])
+
     optimise_svg()
 
 
@@ -172,6 +183,7 @@ def price_html():
         f'<h3>{esc(pr["heading"])}</h3>'
         f'<p>{esc(pr["body"])}</p>'
         f'<p class="hema">{esc(pr["highlight"])}</p>'
+        f'{supplier_row()}'
         f'<p class="aside">{esc(pr["aside"])}</p>'
         f'</div>'
     )
@@ -300,6 +312,25 @@ def hours_html():
         rows.append(f'<div class="row"><dt>{esc(day)}</dt>'
                     f'<dd>{"".join(parts)}</dd></div>')
     return f'<dl class="hours">{"".join(rows)}</dl>'
+
+
+def supplier_row():
+    """The suppliers' marks, on white cards.
+
+    Not keyed to transparent: both marks sit on white in the files supplied,
+    and the American Creator flag carries white stars and stripes, so removing
+    white would punch holes straight through it. A white card is also how a
+    stockist normally shows a supplier's mark.
+    """
+    sup = C.PRODUCTS.get("suppliers") or []
+    if not sup:
+        return ""
+    tiles = "".join(
+        f'<li><img src="img/suppliers/{esc(x["file"])}" alt="{H.escape(x["alt"])}" '
+        f'loading="lazy" decoding="async" width="280" height="120"></li>'
+        for x in sup
+    )
+    return f'<ul class="suppliers" aria-label="Products used">{tiles}</ul>'
 
 
 def art_price(level):
@@ -684,6 +715,13 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
   border-radius:0 10px 10px 0;padding:.9rem 1.1rem;margin:0 0 .9rem;
   color:var(--ink);font-weight:600}
 .products .aside{font-size:.9rem;margin-bottom:0}
+/* Supplier marks. A plain row on white cards — no border, no "partner" or
+   "approved" framing, because none is claimed. */
+.suppliers{list-style:none;margin:0 0 1rem;padding:0;display:flex;
+  flex-wrap:wrap;gap:.6rem}
+.suppliers li{flex:0 1 auto}
+.suppliers img{display:block;width:auto;height:52px;border-radius:8px;
+  background:#fff}
 /* Season label left, time right, so a seasonal day's hours land in the same
    column as every other day's. With the label trailing, Thursday read as a
    different table from the rest. */

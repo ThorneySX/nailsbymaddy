@@ -336,6 +336,18 @@ PRODUCTS = {
         "Any questions about products or services — message me on WhatsApp or "
         "Instagram, or email hello@nailsbymaddy.co.uk."
     ),
+    # The suppliers' own marks, supplied by Andy. Shown to say which products
+    # she stocks — ordinary nominative use by a stockist, the same as a salon
+    # window. They are set as a plain row with no claim of partnership,
+    # endorsement or approval, and each carries the supplier's name as alt
+    # text rather than anything implying a relationship.
+    #
+    # If either supplier ever asks for a specific treatment of their mark,
+    # theirs wins over this layout without argument.
+    "suppliers": [
+        {"file": "twenty.png", "alt": "Twenty Pro"},
+        {"file": "american-creator.png", "alt": "American Creator"},
+    ],
 }
 
 SEO = {

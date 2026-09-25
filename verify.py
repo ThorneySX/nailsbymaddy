@@ -377,6 +377,34 @@ if 'class="totop"' not in html or 'href="#top"' not in html:
 if 'id="top"' not in html:
     fails.append("back-to-top points at #top, which does not exist")
 
+# 6g. supplier marks: shown as supplied, and never altered. They are other
+#     companies' trademarks — the one thing we control is that we do not
+#     recolour, restyle or watermark them, and that the page claims no
+#     partnership it does not have.
+for x in C.PRODUCTS.get('suppliers', []):
+    src = pathlib.Path('brand/suppliers') / x['file']
+    built = pathlib.Path('public/img/suppliers') / x['file']
+    if not built.exists():
+        fails.append(f"supplier mark {x['file']} was not published")
+    elif src.read_bytes() != built.read_bytes():
+        fails.append(f"supplier mark {x['file']} was altered on the way out — "
+                     f"these are published byte-for-byte as supplied")
+    if x['alt'] not in html:
+        fails.append(f"supplier mark {x['file']} has no alt text on the page")
+# No claim of a relationship that does not exist. Scanned against the VISIBLE
+# text only — the first version searched the whole file and tripped on the
+# word "partner" inside a CSS comment explaining that we do not claim to be
+# one, which is a check failing on its own documentation.
+_visible = re.sub(r'<(style|script)[^>]*>.*?</\1>', ' ', html, flags=re.S)
+_visible = re.sub(r'<!--.*?-->', ' ', _visible, flags=re.S)
+_visible = re.sub(r'<[^>]+>', ' ', _visible).lower()
+for word in ('partner', 'official stockist', 'approved by', 'endorsed'):
+    if word in _visible:
+        fails.append(f"page says {word!r} near the supplier marks — no such "
+                     f"relationship has been agreed")
+print(f"✓ {len(C.PRODUCTS.get('suppliers', []))} supplier marks published "
+      f"unaltered, no partnership claimed")
+
 # 7. title and description must survive Google's truncation
 title, desc = C.SEO['title'], C.SEO['description']
 if len(title) > 62: fails.append(f"title {len(title)} chars — Google cuts near 60")
