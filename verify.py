@@ -1,4 +1,5 @@
 import json, re, pathlib, sys
+import datetime as _dt
 import config as C
 
 # --no-browser skips only section 5, the rendered checks, and substitutes
@@ -13,9 +14,23 @@ html = pathlib.Path('public/index.html').read_text()
 fails = []
 
 # 1. JSON-LD parses, and every price matches services.json exactly
-graphs = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.S).group(1))
-if isinstance(graphs, dict): graphs = [graphs]
-by_type = {g['@type']: g for g in graphs}
+blob = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.S).group(1))
+# The schema is now ONE @graph whose entities cross-reference each other by
+# @id, rather than a list of unrelated top-level objects. Google reads both,
+# but only the graph lets the salon, the person, the photographs and the
+# breadcrumb say they are about each other — which is what an entity is.
+# Accept the old shape too so this file does not break mid-refactor.
+if isinstance(blob, dict) and '@graph' in blob:
+    graphs = blob['@graph']
+elif isinstance(blob, dict):
+    graphs = [blob]
+else:
+    graphs = blob
+by_type = {}
+for g in graphs:
+    ty = g.get('@type')
+    for one in (ty if isinstance(ty, list) else [ty]):
+        by_type.setdefault(one, g)
 ld = by_type['NailSalon']
 
 # FAQ: every question on the page must be in the schema and vice versa
@@ -155,14 +170,26 @@ else:
 # 6. the call-to-action set: right actions, right order, first one primary
 import build_site as B
 acts = [a[0] for a in B.actions()]
-want = (['book'] if C.OUTSTANDING['booking_url'] else []) + \
-       (['whatsapp'] if C.BUSINESS.get('whatsapp') else []) + ['call']
+# Book Now is always first and always present. WhatsApp only appears as a
+# second button once booking_url points somewhere else — before that, Book Now
+# IS the WhatsApp link and a second button would be the same destination twice.
+# The call button was removed on 25 Sept 2026; the number lives in the footer,
+# the 404 and `telephone` in the schema, where Google reads it for NAP matching.
+want = ['book']
+if C.OUTSTANDING['booking_url'] and C.BUSINESS.get('whatsapp'):
+    want.append('whatsapp')
 if acts != want: fails.append(f"CTA order {acts} != {want}")
+if 'tel:' in re.search(r'<div class="cta">(.*?)</div>', html, re.S).group(1):
+    fails.append("a tel: link is back in the hero CTA — the call button was removed deliberately")
+if f'tel:{C.BUSINESS["phone_e164"]}' not in html:
+    fails.append("the phone number has vanished from the page entirely — it belongs in the footer")
 hero = re.search(r'<div class="cta">(.*?)</div>', html, re.S).group(1)
 btns = re.findall(r'<a class="(btn[^"]*)"[^>]*><svg.*?</svg><span>([^<]+)</span>', hero, re.S)
 if len(btns) != len(want): fails.append(f"hero shows {len(btns)} buttons, expected {len(want)}")
 if btns and btns[0][0] != 'btn': fails.append("first CTA is not the primary style")
 if C.BUSINESS.get('whatsapp'):
+    # Whether it is behind "Book Now" or its own button, the wa.me link must
+    # be well-formed — a leading zero or a + silently opens an empty chat.
     if f"wa.me/{C.BUSINESS['whatsapp']}?text=" not in html:
         fails.append("WhatsApp link missing or malformed")
     if C.BUSINESS['whatsapp'].startswith(('0', '+')):
@@ -412,11 +439,171 @@ if not 120 <= len(desc) <= 158: fails.append(f"description {len(desc)} chars —
 print(f"✓ title {len(title)} chars, description {len(desc)} chars — both display in full")
 
 # 8. the terms we're actually targeting are present
+import html as _H
+_body = re.sub(r'<(style|script)[^>]*>.*?</\1>', ' ', html, flags=re.S)
+_body = _H.unescape(re.sub(r'<[^>]+>', ' ', _body)).lower()
+# Counted in the VISIBLE COPY, not the file. The first version of this counted
+# the whole of index.html, so "nail technician" scored a pass on the strength
+# of the JSON-LD and the alt attributes while appearing nowhere a reader could
+# see it — a term Google reads in the body is a term the page is about; a term
+# only in the markup is a claim about the page.
 for term, least in [('southend', 3), ('westcliff', 3), ('builder gel', 3),
-                    ('hard gel', 2), ('gel nails', 1), ('nail technician', 1)]:
-    n = html.lower().count(term)
-    if n < least: fails.append(f"target term {term!r} appears {n}× (want ≥{least})")
-print("✓ every target term present in the copy")
+                    ('hard gel', 2), ('gel nails', 1), ('nail technician', 1),
+                    ('essex', 1)]:
+    n = _body.count(term)
+    if n < least: fails.append(f"target term {term!r} appears {n}× in the visible copy (want ≥{least})")
+print(f"✓ every target term present in the visible copy ({len(_body.split())} words)")
+
+# 9. the @graph must hold together. Its whole value over a pile of loose
+#    objects is that entities point at each other by @id — so a reference to
+#    an @id nothing defines is worse than no reference at all: it looks like
+#    a relationship and resolves to nothing. This walks every {"@id": ...}
+#    reference in the graph and checks something in the graph answers to it.
+defined = {g['@id'] for g in graphs if '@id' in g}
+def _refs(node, out):
+    if isinstance(node, dict):
+        if set(node) == {'@id'}: out.add(node['@id'])
+        else:
+            for v in node.values(): _refs(v, out)
+    elif isinstance(node, list):
+        for v in node: _refs(v, out)
+    return out
+dangling = _refs(graphs, set()) - defined
+if dangling: fails.append(f"schema @id references nothing defines: {sorted(dangling)}")
+
+for want in ('NailSalon', 'Person', 'WebSite', 'WebPage', 'BreadcrumbList',
+             'FAQPage', 'ImageObject', 'Organization'):
+    if want not in by_type: fails.append(f"schema is missing a {want} entity")
+
+# Google matches the site's NAP against the Google Business Profile, and the
+# coordinates are what put the pin in the right place. They were verified
+# against postcodes.io rather than typed.
+geo = ld.get('geo', {})
+if geo.get('@type') != 'GeoCoordinates' or not geo.get('latitude'):
+    fails.append("NailSalon has no GeoCoordinates — the local pin has nothing to sit on")
+for f in ('telephone', 'address', 'openingHoursSpecification', 'priceRange'):
+    if f not in ld: fails.append(f"NailSalon schema is missing {f}")
+if 'aggregateRating' in ld:
+    fails.append("aggregateRating is in the schema — self-serving ratings are against "
+                 "Google's policy and AGENTS.md forbids it")
+# The booking action must point wherever Book Now points today, or the
+# structured data promises a booking route the page does not offer.
+pa = ld.get('potentialAction', {})
+if pa.get('@type') != 'ReserveAction':
+    fails.append("no ReserveAction — nothing in the schema says she can be booked")
+elif B.book_href() not in json.dumps(pa):
+    fails.append("ReserveAction target does not match where Book Now actually goes")
+
+imgs = [g for g in graphs if g.get('@type') == 'ImageObject']
+# Attribution is required on the PHOTOGRAPHS — they are the work, they are what
+# gets lifted, and Google shows creator and credit in the Images viewer. The
+# logo is a brand mark, not a licensable photograph, and the portrait is
+# Maddy's own face: neither is on offer, so neither carries acquireLicensePage.
+#
+# NOTE: Google's licensable-image badge needs a `license` URL pointing at
+# written terms. There is no such page, so the badge will not appear; what is
+# here is the attribution metadata, which it does read. Adding terms is a
+# decision for Maddy, not a build change.
+for i in imgs:
+    aid = i.get('@id', '')
+    need = ['contentUrl']
+    if not aid.endswith('#logo'):
+        need += ['creator', 'copyrightNotice', 'creditText']
+    if aid.startswith(f'{C.SITE_URL}/#image-'):
+        need += ['acquireLicensePage']
+    for f in need:
+        if f not in i: fails.append(f"ImageObject {aid} has no {f}")
+print(f"✓ schema @graph: {len(graphs)} entities, {len(imgs)} ImageObjects, "
+      f"every @id reference resolves")
+
+# 9b. the footer credit. This is a case-study build; the line is the return.
+cr = C.CREDIT
+for k in ('builder', 'builder_url', 'parent', 'parent_url'):
+    if not cr.get(k): fails.append(f"CREDIT[{k!r}] is empty")
+foot = re.search(r'<p class="fine">(.*?)</p>', html, re.S)
+if not foot:
+    fails.append("footer credit line is missing entirely")
+else:
+    f = foot.group(1)
+    for bit in (f"&copy; {_dt.date.today().year}", C.BUSINESS['name'],
+                cr['builder'], cr['builder_url'], 'part of the',
+                cr['parent'], cr['parent_url']):
+        if bit not in f: fails.append(f"footer credit does not carry {bit!r}")
+    print("✓ footer credit: © {}, site by {}, part of the {} — both linked".format(
+        _dt.date.today().year, cr['builder'], cr['parent']))
+
+# 9c. the sitemap must parse, list this page, and point only at files that
+#     exist. A sitemap that names a 404 is the fastest way to teach Search
+#     Console to distrust the rest of it.
+import xml.etree.ElementTree as ET
+sm = pathlib.Path('public/sitemap.xml')
+if not sm.exists():
+    fails.append("no sitemap.xml was written")
+else:
+    NS = {'s': 'http://www.sitemaps.org/schemas/sitemap/0.9',
+          'i': 'http://www.google.com/schemas/sitemap-image/1.1'}
+    try:
+        root = ET.fromstring(sm.read_text())
+    except ET.ParseError as e:
+        root = None; fails.append(f"sitemap.xml is not well-formed XML: {e}")
+    if root is not None:
+        locs = [u.findtext('s:loc', namespaces=NS) for u in root.findall('s:url', NS)]
+        if locs != [f"{C.SITE_URL}/"]:
+            fails.append(f"sitemap lists {locs}, expected just the one page")
+        ilocs = [e.text for e in root.iter('{%s}loc' % NS['i'])]
+        for u in ilocs:
+            rel = u.replace(C.SITE_URL + '/', '')
+            if not (pathlib.Path('public') / rel).exists():
+                fails.append(f"sitemap names {rel}, which was not published")
+        # Deprecated since May 2022 and unread since that August. Their
+        # presence is not an error, it is a claim that they do something.
+        for dead in ('title', 'caption', 'geo_location', 'license'):
+            if root.find('.//{%s}%s' % (NS['i'], dead)) is not None:
+                fails.append(f"sitemap still emits image:{dead} — Google dropped it in 2022")
+        if root.find('.//{%s}changefreq' % NS['s']) is not None or \
+           root.find('.//{%s}priority' % NS['s']) is not None:
+            fails.append("sitemap carries changefreq/priority — Google ignores both")
+        n_page_imgs = len(set(re.findall(r'src="(img/[^"]+)"', html)))
+        print(f"✓ sitemap: 1 URL, {len(ilocs)} images, all present on disk, "
+              f"no deprecated fields")
+
+# 9d. filenames have to earn their place in Google Images. A photograph
+#     published as work-07.jpg tells a crawler nothing; the alt text is the
+#     other half and neither substitutes for the other.
+STOP = {'and', 'the', 'with', 'a', 'in', 'on', 'of'}
+for x in C.OUTSTANDING['gallery'] + [C.OUTSTANDING['portrait']]:
+    stem = x['file'].rsplit('.', 1)[0]
+    if re.fullmatch(r'(work|img|photo|image|dsc|IMG)[-_]?\d+', stem):
+        fails.append(f"{x['file']} is still a camera filename — no keywords in it")
+    words = [w for w in stem.split('-') if w and w not in STOP]
+    if len(words) < 4:
+        fails.append(f"{x['file']} carries only {len(words)} descriptive words in its name")
+    if len(stem) > 70:
+        fails.append(f"{x['file']} name is {len(stem)} chars — keep it readable")
+    alt = x.get('alt', '')
+    if len(alt) < 25:
+        fails.append(f"{x['file']} alt text is {len(alt)} chars — too thin to describe anything")
+    if len(alt) > 160:
+        fails.append(f"{x['file']} alt text is {len(alt)} chars — screen readers will not thank us")
+    if alt.lower().startswith(('image of', 'picture of', 'photo of')):
+        fails.append(f"{x['file']} alt text opens with 'image of' — the tag already says that")
+print(f"✓ {len(C.OUTSTANDING['gallery'])+1} images: keyword filenames and "
+      f"descriptive alt text, none of it boilerplate")
+
+# 9e. every master photograph must have its ORIGINAL's fingerprint recorded.
+#     dedupe.py compares a candidate's full frame against these, so a missing
+#     entry does not break anything — it just quietly stops catching re-sends
+#     of that one set, which is the failure mode that costs a round trip to
+#     Maddy and risks the same nails appearing twice on a live page. It went
+#     missing once already, when a file was renamed and the key was not.
+srcs = json.loads(pathlib.Path('photos/sources.json').read_text())
+masters = {p.name for p in pathlib.Path('photos').glob('*.jpg')}
+for m in sorted(masters - set(srcs)):
+    fails.append(f"photos/sources.json has no source fingerprint for {m} — "
+                 f"dedupe will not catch a re-send of it")
+for s in sorted(set(srcs) - masters):
+    fails.append(f"photos/sources.json names {s}, which is not in photos/")
+print(f"✓ {len(srcs)} source fingerprints, one per master photograph")
 
 print()
 print("FAILED:" if fails else "ALL CHECKS PASSED")
