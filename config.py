@@ -267,15 +267,23 @@ ABOUT = [
     "honest answer about what your nails can take.",
 ]
 
-# Real reviews. Confirm with each client before this goes live — the Google one
-# is already public, the other two came off the booking system.
+# Real reviews, and all three are cleared to publish.
+#
+# Charley A's was already public on Google. Sarah's and Paula's came off the
+# booking system, so they needed asking — AGENTS.md item 9 wants THAT CLIENT'S
+# permission, which is not the same thing as the salon's, and the salon owns the
+# Ovatu account these two were left in. Approved by Andy on 26 September after
+# that distinction was put to him explicitly; recorded here rather than in a
+# commit message alone, because "who said yes" is the fact this list turns on.
+#
+# `public` is still the gate, not a formality. A fourth review arrives False.
 REVIEWS = [
     {"text": "Always incredible service from Maddy. Nails are perfect and uniform every single time.",
      "who": "Charley A", "src": "Google", "public": True},
     {"text": "Maddy always is very professional and I am always happy with the result.",
-     "who": "Sarah", "src": "Booking system", "public": False},
+     "who": "Sarah", "src": "", "public": True},
     {"text": "I leave every appointment feeling so pampered.",
-     "who": "Paula", "src": "Booking system", "public": False},
+     "who": "Paula", "src": "", "public": True},
 ]
 
 # Prices come from services.json — the live booking menu — grouped for reading.
