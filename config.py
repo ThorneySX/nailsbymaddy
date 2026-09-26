@@ -12,7 +12,7 @@ DRAFT = False  → missing sections are omitted entirely, so nothing half-built
                  is ever public. Flip this on launch day.
 """
 
-DRAFT = True
+DRAFT = False
 
 DOMAIN = "nailsbymaddy.co.uk"
 SITE_URL = f"https://{DOMAIN}"

@@ -72,13 +72,25 @@ if C.DRAFT:
     print("✓ draft build is noindex + robots-disallowed")
 
 # 4. live build must contain no placeholder, no ribbon, no non-public review
+#
+# This used to assume DRAFT was True and flip it to get a live build to
+# inspect. That assumption expired the day the site went live: with DRAFT
+# already False the regex matched nothing and the assertion below killed the
+# whole run — so the gate guarding the launch stopped working AT the launch,
+# which is the worst possible moment for it and the one nobody rehearses.
+# When DRAFT is already False the build on disk IS the live build, so there is
+# nothing to flip and nothing to restore. Both paths run the same assertions.
 import subprocess, shutil
 cfg = pathlib.Path('config.py'); orig = cfg.read_text()
 # anchor to the assignment at column 0 — the docstring above it says
 # "DRAFT = True" too, and a plain replace() rewrites that instead.
 flipped, count = re.subn(r'(?m)^DRAFT = True$', 'DRAFT = False', orig)
-assert count == 1, f'expected one DRAFT assignment, found {count}'
-cfg.write_text(flipped)
+if C.DRAFT:
+    assert count == 1, f'expected one DRAFT assignment, found {count}'
+    cfg.write_text(flipped)
+else:
+    assert count == 0, 'DRAFT is False but a "DRAFT = True" assignment is still there'
+    assert re.search(r'(?m)^DRAFT = False$', orig), 'no DRAFT assignment at column 0'
 try:
     subprocess.run([sys.executable, 'build_site.py'], check=True, capture_output=True)
     live = pathlib.Path('public/index.html').read_text()
@@ -93,8 +105,12 @@ try:
     print(f"✓ live build clean: no placeholders, no ribbon, indexable, "
           f"only the {sum(r['public'] for r in C.REVIEWS)} public review shown")
 finally:
-    cfg.write_text(orig)
-    subprocess.run([sys.executable, 'build_site.py'], check=True, capture_output=True)
+    # Only restore what was actually changed. Rewriting and rebuilding when
+    # DRAFT is already False is a no-op that costs a full rebuild, and a
+    # needless write is a needless way to lose the file.
+    if C.DRAFT:
+        cfg.write_text(orig)
+        subprocess.run([sys.executable, 'build_site.py'], check=True, capture_output=True)
 
 # 5. render checks
 if NO_BROWSER:
@@ -596,6 +612,15 @@ print(f"✓ {len(C.OUTSTANDING['gallery'])+1} images: keyword filenames and "
 #     of that one set, which is the failure mode that costs a round trip to
 #     Maddy and risks the same nails appearing twice on a live page. It went
 #     missing once already, when a file was renamed and the key was not.
+#     A key with a null value says the original is GONE and somebody knew it.
+#     That is not the same as a key nobody wrote, and the two used to be
+#     indistinguishable — both simply absent. Absent still fails, because it
+#     means the question was never asked. Null warns, loudly and by name,
+#     because the question was asked and the answer is that this one cannot be
+#     covered. What must never appear is a hash of the square crop: measured
+#     10-21 bits from the true original on all eighteen we hold, so it would
+#     look correct and silently never match. A gap this check can see beats a
+#     value it cannot.
 srcs = json.loads(pathlib.Path('photos/sources.json').read_text())
 masters = {p.name for p in pathlib.Path('photos').glob('*.jpg')}
 for m in sorted(masters - set(srcs)):
@@ -603,7 +628,11 @@ for m in sorted(masters - set(srcs)):
                  f"dedupe will not catch a re-send of it")
 for s in sorted(set(srcs) - masters):
     fails.append(f"photos/sources.json names {s}, which is not in photos/")
-print(f"✓ {len(srcs)} source fingerprints, one per master photograph")
+unknown = sorted(k for k, v in srcs.items() if v is None)
+for u in unknown:
+    print(f"⚠ no original held for {u} — dedupe cannot catch a re-send of it")
+print(f"✓ {len(srcs) - len(unknown)} source fingerprints, "
+      f"{len(unknown)} originals not held, one entry per master photograph")
 
 print()
 print("FAILED:" if fails else "ALL CHECKS PASSED")
