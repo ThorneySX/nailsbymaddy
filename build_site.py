@@ -761,7 +761,10 @@ CSS = """
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 /* The header is sticky, so an anchored section would otherwise land with its
    heading underneath it. */
-section[id],#top,#main{scroll-margin-top:4.6rem}
+/* #top is deliberately NOT in this list. It sits at the very start of the
+   document, so it wants the top of the page and nothing above it; the offset
+   exists for headings that would otherwise land under the sticky bar. */
+section[id],#main{scroll-margin-top:4.6rem}
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   *{animation-duration:.01ms!important;transition-duration:.01ms!important}
@@ -929,6 +932,19 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
 .suppliers{list-style:none;margin:0 0 1rem;padding:0;display:flex;
   flex-wrap:wrap;gap:.6rem}
 .suppliers li{flex:0 1 auto}
+/* The white card is ANDY'S CALL, not a default — see the note below.
+   Both marks arrive as RGB with a baked-in white background and no alpha, so
+   the card is not decoration: it is the only way to show them without editing
+   someone else's trademark. Keying the white out is doubly wrong — it is the
+   file, and the American Creator flag's stars and stripes ARE white, so a key
+   punches holes through the mark.
+   `mix-blend-mode:multiply` removes the white without touching the file, and
+   was measured in the browser: every corner lands on this section's #FFF4F8
+   exactly. But it also multiplies the ink — mean shift 7.6/255 across 95% of
+   the mark's pixels, worst 16. Small, and still a recolour of the rendered
+   mark, which AGENTS.md item 8 forbids and its preamble says to ask about
+   rather than work around. Asked. The real fix is transparent versions from
+   the two suppliers. */
 .suppliers img{display:block;width:auto;height:52px;border-radius:8px;
   background:#fff}
 /* Season label left, time right, so a seasonal day's hours land in the same
@@ -1109,10 +1125,17 @@ def build():
 <script type="application/ld+json">{schema()}</script>
 </head>
 <body>
+<!-- The back-to-top anchor. It has to be its own empty element, NOT the
+     header: the header is position:sticky, and a stuck element never leaves
+     the viewport, so the browser had nothing to scroll and href="#top" did
+     precisely nothing at any scroll position. Reported as "the return to top
+     arrow doesn't work", and it never had. The brand mark and the nav's Close
+     link point at #top too, so all three were affected. -->
+<span id="top"></span>
 <a class="skip" href="#main">Skip to content</a>
 {ribbon}
 
-<header class="site-head" id="top">
+<header class="site-head">
   <div class="wrap head-in">
     <a class="brand" href="#top" aria-label="Nails by Maddy — home">{logo_img()}</a>
     <div class="head-right">
