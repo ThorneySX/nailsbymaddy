@@ -87,7 +87,14 @@ def main(paths):
     if not SOURCES.exists():
         print(f"{SOURCES} is missing — nothing to compare against.")
         return 2
-    known = {k: int(v, 16) for k, v in json.loads(SOURCES.read_text()).items()}
+    # A null value means the original full frame is not available, so there is
+    # nothing honest to compare against. Those files stay out of `known` and
+    # fall into `blind` below, which is exactly where they belong: named, and
+    # reported as uncovered. Writing a hash of the square crop instead would
+    # look right and never match — measured 10-21 bits away from the real
+    # originals on the eighteen we do have.
+    known = {k: int(v, 16)
+             for k, v in json.loads(SOURCES.read_text()).items() if v is not None}
 
     gallery = [x["file"] for x in C.OUTSTANDING["gallery"]]
     blind = [f for f in gallery if f not in known]
