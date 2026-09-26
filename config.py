@@ -240,31 +240,37 @@ OUTSTANDING = {
 
 # --------------------------------------------------------------------- copy
 
+# Maddy read the site on 26 September and asked for one thing: "I'd just
+# change the wording slightly so sounds more like me... more like the details
+# on the pictures." So the gallery notes are the reference for this voice, not
+# a style guide. What they do, every time: name the concrete thing, explain why
+# it works, then one short aside of her own — "Slow work, and worth it", "the
+# one that shows up any shortcuts".
+#
+# Against that, the old lead opened on "Level 2 and Level 3 qualified" and
+# closed on "I'll tell you before we start, not after". She does not lead with
+# a credential and she does not assert where she could explain. The
+# qualification is still on the page, in TRUST, which is where a credential
+# belongs. The h1 is her own phrase, lifted from the French manicure note:
+# "a clean smile line on the nail you already have".
+#
+# Nothing factual moved. Same services, same no-acrylics, same lifting promise.
 HERO = {
     "eyebrow": f"{BUSINESS['town']} · Southend",
-    # The old line — "Nails that last, on nails that stay healthy" — sold a
-    # category. Plenty of salons could put it up. This sells HER: eight years,
-    # Level 3 qualified, natural nails only, and the one thing that actually
-    # decides whether a nervous client books, which is that she will say no.
-    "h1": "Eight years of natural nails, Westcliff and Southend.",
+    "h1": 'The nails you already have, made stronger.',
     "lead": (
-        "Level 2 and Level 3 qualified, and no acrylic in sight. I strengthen "
-        "your own nails with builder and hard gel rather than covering them "
-        "up — and if your nails can't take what you're asking for, I'll tell "
-        "you before we start, not after."
+        'Builder gel and hard gel over your own nails, never acrylic on top of them. The gel takes the wear so the nail underneath gets a chance to grow — that is really the whole job. Eight years of it, from a chair at Kizuri in Westcliff-on-Sea, minutes from Southend.'
     ),
 }
 
 TRUST = ["8 years' experience", "Level 2 & 3 qualified",
          "HEMA-free available", "Natural nails only"]
 
+# Her voice, same reference as HERO above: thing, reason, aside.
 ABOUT = [
-    "I work from Kizuri Beauty Parlour on Hamlet Court Road, and I look after "
-    "natural nails — strengthening them with builder and hard gel rather than "
-    "covering them up.",
-    "If your nails are sensitive, peeling, or recovering from acrylics, that is "
-    "what I do all day. You'll get the same pair of hands every time, and an "
-    "honest answer about what your nails can take.",
+    'I work from a chair at Kizuri Beauty Parlour on Hamlet Court Road, and I have spent eight years looking after natural nails. Gel, builder gel, hard gel, nail art and spa pedicures — and no acrylics at all.',
+    'Most people who find me are a bit fed up with their nails. Peeling, splitting, thin after years of acrylic, or a reaction that put them off gel altogether. That is the bulk of what I do and the part I like most — the nail is usually fine underneath, it just needs something to take the wear while it grows.',
+    'You get the same pair of hands every time. And if what you are after will not suit your nails I would rather say so at the start than have a set lift in a week — if one does, come back and I will sort it.',
 ]
 
 # Real reviews, and all three are cleared to publish.
