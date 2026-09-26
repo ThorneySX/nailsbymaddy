@@ -455,12 +455,21 @@ def faq_html():
 
 
 def reviews_html():
+    # The source is cited only when there is something a reader could go and
+    # check. "Google" is that; the booking system is not — it is where we found
+    # the review, not somewhere anyone can verify it, and printing it put the
+    # internal words "Booking system" on a customer's screen the moment those
+    # two reviews were cleared to publish. verify.py caught it as a leaked
+    # internal note, correctly. Dressing it up as a badge would have been worse
+    # than leaving it off: a provenance claim nobody can follow. So an empty
+    # src prints the name alone, and no dangling separator with it.
     out = []
     for r in C.REVIEWS:
         if C.DRAFT or r["public"]:
+            src = f' <span>· {esc(r["src"])}</span>' if r.get("src") else ""
             out.append(
                 f'<blockquote class="quote"><p>{esc(r["text"])}</p>'
-                f'<cite>{esc(r["who"])} <span>· {esc(r["src"])}</span></cite></blockquote>'
+                f'<cite>{esc(r["who"])}{src}</cite></blockquote>'
             )
     note = hold("Permission to publish", "confirm with each client first") if C.DRAFT else ""
     return f'<div class="quotes">{"".join(out)}</div>{note}'
@@ -932,21 +941,26 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
 .suppliers{list-style:none;margin:0 0 1rem;padding:0;display:flex;
   flex-wrap:wrap;gap:.6rem}
 .suppliers li{flex:0 1 auto}
-/* The white card is ANDY'S CALL, not a default — see the note below.
-   Both marks arrive as RGB with a baked-in white background and no alpha, so
-   the card is not decoration: it is the only way to show them without editing
-   someone else's trademark. Keying the white out is doubly wrong — it is the
-   file, and the American Creator flag's stars and stripes ARE white, so a key
-   punches holes through the mark.
-   `mix-blend-mode:multiply` removes the white without touching the file, and
-   was measured in the browser: every corner lands on this section's #FFF4F8
-   exactly. But it also multiplies the ink — mean shift 7.6/255 across 95% of
-   the mark's pixels, worst 16. Small, and still a recolour of the rendered
-   mark, which AGENTS.md item 8 forbids and its preamble says to ask about
-   rather than work around. Asked. The real fix is transparent versions from
-   the two suppliers. */
-.suppliers img{display:block;width:auto;height:52px;border-radius:8px;
-  background:#fff}
+/* Transparent background on the supplier marks — APPROVED BY ANDY, 26 Sep,
+   which is why this is here at all. AGENTS.md item 8 forbids recolouring these
+   marks and the Controls preamble says to ask rather than work around; this is
+   the answer to that ask, recorded so the next reader sees the permission and
+   not just the code.
+   Both files are RGB with baked-in white and no alpha, so the white was not
+   decoration. Keying it out is doubly wrong: it is the file, and the American
+   Creator flag's stars and stripes ARE white, so a key punches holes through
+   the mark. `multiply` is a rendering choice instead — the published bytes stay
+   identical and verify.py still compares them.
+   Measured in Chromium at 390px, not assumed: every mark corner lands on this
+   section's #FFF4F8 exactly (0 of 8 white, against 1-2 of 4 before). It does
+   also multiply the ink, by a mean of 7.6/255 across 95% of the mark's pixels,
+   worst 16 — about 3%, and the number Andy was given before approving.
+   The permanent fix is transparent PNG or SVG from the two suppliers; ask for
+   them and this rule can go. */
+.suppliers img{display:block;width:auto;height:52px;background:#fff}
+@supports (mix-blend-mode:multiply){
+  .suppliers img{background:transparent;mix-blend-mode:multiply}
+}
 /* Season label left, time right, so a seasonal day's hours land in the same
    column as every other day's. With the label trailing, Thursday read as a
    different table from the rest. */
