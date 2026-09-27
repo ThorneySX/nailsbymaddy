@@ -212,6 +212,41 @@ if C.BUSINESS.get('whatsapp'):
         fails.append("wa.me number must have no leading zero and no +")
 print(f"✓ CTAs: {' → '.join(l for _, l in btns)} (first is primary)")
 
+# 6a. THE HEADER BUTTON, which nothing above this line reads. Check 6 parses
+#     `<div class="cta">` — the hero row — so for as long as the header has
+#     existed its label, its glyph and its destination have agreed only by
+#     nobody having touched them. They disagreed once: it said "Book Now"
+#     behind a calendar and opened a WhatsApp thread, which is the site
+#     promising a reservation and delivering a conversation.
+head = re.search(r'<header class="site-head">(.*?)</header>', html, re.S).group(1)
+hb = re.search(r'<a class="btn" href="([^"]+)" aria-label="([^"]+)"[^>]*>'
+               r'<svg[^>]*>(.*?)</svg><span>([^<]+)</span>', head, re.S)
+if not hb:
+    fails.append("no button found in the sticky header — check 6a is reading nothing")
+else:
+    h_href, h_aria, h_glyph, h_label = hb.groups()
+    # The glyph is identified by its own path data out of build_site.ICONS, not
+    # by a class name. A class can be renamed in one place and stay green.
+    h_kind = next((k for k, v in B.ICONS.items() if v in h_glyph), None)
+    if h_kind is None:
+        fails.append("the header button's icon is not one of build_site.ICONS")
+    elif 'wa.me/' in h_href:
+        if h_kind != 'whatsapp':
+            fails.append(f"header opens WhatsApp behind the '{h_kind}' icon")
+        if 'book' in h_label.lower():
+            fails.append(f"header says '{h_label}' and opens a message thread, "
+                         f"not a diary")
+    elif h_kind != 'book':
+        fails.append(f"header opens the booking system behind the '{h_kind}' icon")
+    # WCAG 2.5.3, Label in Name: a voice user says the words they can SEE. If
+    # the accessible name does not contain them, "tap Contact Me" does nothing.
+    if h_label.lower() not in h_aria.lower():
+        fails.append(f"header aria-label {h_aria!r} does not contain the visible "
+                     f"words {h_label!r} — WCAG 2.5.3")
+    print(f"✓ header button: {h_label} · {h_kind} icon · "
+          f"{'WhatsApp' if 'wa.me/' in h_href else 'booking system'} · "
+          f"spoken as {h_aria!r}")
+
 # 6b. gallery detail panels: one per photograph, every word on the page, and
 #     the level price matching the booking menu rather than a typed-in copy.
 g = C.OUTSTANDING['gallery']

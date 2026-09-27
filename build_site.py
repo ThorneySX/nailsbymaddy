@@ -290,8 +290,30 @@ def cta_row(align="center"):
 
 
 def cta(label=None):
-    """The single button in the sticky header — whatever the top action is."""
+    """The single button in the sticky header — whatever the top action is.
+
+    IT SAYS WHAT THE LINK ACTUALLY DOES. Until booking_url is filled the top
+    action opens WhatsApp, so the header read "Book Now" behind a calendar icon
+    and then dropped the visitor into a message thread. Asked for as "Contact Me
+    with WhatsApp icon", and it is also the more honest of the two — nothing is
+    reserved at the far end of that tap, a conversation starts.
+
+    Derived from the destination rather than hard-coded, because the moment
+    booking_url points at a real diary the calendar and "Book Now" are correct
+    again and this repoints itself. A label somebody typed in would not.
+
+    The glyph is the repo's speech bubble, NOT WhatsApp's own mark: that mark is
+    Meta's trademark, and AGENTS.md already forbids publishing another company's
+    mark to imply a relationship. A bubble says "a message opens here" without
+    claiming one.
+    """
     kind, href, lab, aria = actions()[0]
+    if kind == "book" and "wa.me/" in href:
+        # The spoken name has to CONTAIN the visible words, or a voice user says
+        # "tap Contact Me" and nothing happens — WCAG 2.5.3, Label in Name.
+        # Leaving "Book an appointment with Maddy" on a button reading Contact Me
+        # breaks it, so both move together or neither does.
+        kind, lab, aria = "whatsapp", "Contact Me", "Contact Me on WhatsApp"
     rel = ' rel="noopener"' if href.startswith("http") else ""
     return (f'<a class="btn" href="{href}" aria-label="{H.escape(aria)}"{rel}>'
             f'{icon(kind)}<span>{esc(label or lab)}</span></a>')
@@ -878,7 +900,41 @@ a{color:var(--pink-ink)}
 .btn.ghost:hover{background:var(--ink);color:#fff}
 .btn .ico{width:18px;height:18px;flex:none}
 @media (max-width:26rem){.cta .btn{flex:1 1 100%}}
-.head-in .btn .ico{width:16px;height:16px}
+/* The header button, small. Asked for at "1/3 of its size", in black text and
+   icon, on a pink pill, reading Contact Me behind a speech bubble.
+   MEASURED at 390px, and it is half rather than a third: 120.8x44 before,
+   103.3x25.2 after — 49% of the area, 57% of the height, 86% of the width.
+   The height went where it was asked to. The WIDTH could not, and the reason
+   is the label: "Contact Me" is two characters longer than "Book Now", so the
+   text sets the width and the only ways past it are type below 11.84px or a
+   word Andy did not ask for. A literal third would be 40x15px, which holds
+   neither the words nor an icon and puts the page's most important tap under
+   every target-size floor there is — WCAG 2.5.8 asks 24px, Apple asks 44.
+   So the PILL shrinks and the TAP AREA does not: ::after is an invisible box
+   stretched back out to 44px high, centred on the pill. Small button, full
+   thumb. Nothing measures the ::after, so verify.py's tap-target check reads
+   the visible pill and warns at 25.2px — that warning is correct about the
+   pill and wrong about the thumb, and it is the honest one to argue with.
+   Computed, not eyeballed: black on this pink is 4.69:1, which clears AA's
+   4.5 for text at this size. White on it is 3.93:1 and does NOT. So the colour
+   Andy asked for is also the accessible one, which is not always how that goes.
+   The hover does NOT darken to --pink-ink any more. Black on that measures
+   3.00:1, so inheriting the old hover would have failed AA for as long as a
+   thumb was on it. Border to Ink instead: clear feedback, no colour outside the
+   four in the palette, and the text contrast never moves.
+   min-height:0 is the load-bearing line. `.head-in .btn{min-height:44px}` is
+   declared 80 lines above this, same selector, same specificity — so padding
+   and font-size here would have shrunk nothing at all and the pill would have
+   stayed 44px tall while the comment claimed otherwise. Overriding it is what
+   makes the pill small; the ::after is what keeps the thumb's target big. */
+.head-in .btn{position:relative;min-height:0;font-size:.74rem;line-height:1.2;
+  letter-spacing:.01em;
+  padding:.22rem .6rem;gap:.26rem;color:var(--ink);border-color:var(--pink)}
+.head-in .btn::after{content:"";position:absolute;left:0;right:0;
+  top:50%;height:44px;transform:translateY(-50%)}
+.head-in .btn:hover,.head-in .btn:focus-visible{color:var(--ink);
+  background:var(--pink);border-color:var(--ink)}
+.head-in .btn .ico{width:13px;height:13px}
 
 /* ---- hero ---- */
 .hero{background:linear-gradient(180deg,var(--blush) 0%,var(--blush-2) 70%,#fff 100%);
