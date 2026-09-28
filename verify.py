@@ -491,12 +491,32 @@ for want in ('NailSalon', 'Person', 'WebSite', 'WebPage', 'BreadcrumbList',
              'FAQPage', 'ImageObject', 'Organization'):
     if want not in by_type: fails.append(f"schema is missing a {want} entity")
 
-# Google matches the site's NAP against the Google Business Profile, and the
-# coordinates are what put the pin in the right place. They were verified
-# against postcodes.io rather than typed.
+# A map pin is only true when there is a premises under it. Until September
+# 2026 this check REQUIRED GeoCoordinates, because she worked from a salon and
+# the pin put her there. She left, and the same check would then have forced
+# the old salon's coordinates to stay published — a pin on a building she no
+# longer works in. So it runs both ways now: a street address needs a pin
+# (Google reconciles the two against the Business Profile), and a pin with no
+# street address is refused.
 geo = ld.get('geo', {})
-if geo.get('@type') != 'GeoCoordinates' or not geo.get('latitude'):
-    fails.append("NailSalon has no GeoCoordinates — the local pin has nothing to sit on")
+street = ld.get('address', {}).get('streetAddress')
+if street and (geo.get('@type') != 'GeoCoordinates' or not geo.get('latitude')):
+    fails.append("NailSalon has a street address but no GeoCoordinates — the local pin has nothing to sit on")
+if geo and not street:
+    fails.append("NailSalon publishes GeoCoordinates with no street address — a pin on no premises")
+if ld.get('hasMap') and not street:
+    fails.append("NailSalon publishes hasMap with no street address")
+
+# The salon she left must not come back through a stale field, an alt text or
+# a copied paragraph. Checked across every generated file, not just the page,
+# because the sitemap and the schema carry text a reader never sees.
+_pub = pathlib.Path('public')
+for f in sorted(_pub.rglob('*')):
+    if f.suffix not in ('.html', '.xml', '.txt', '.json', '.webmanifest'): continue
+    low = f.read_text(encoding='utf-8', errors='ignore').lower()
+    for gone in ('kizuri', 'hamlet court', 'ss0 7lj', 'h7eeplr9fga2hlpu8'):
+        if gone in low:
+            fails.append(f"{f.relative_to(_pub)} still mentions {gone!r} — she has left that salon")
 for f in ('telephone', 'address', 'openingHoursSpecification', 'priceRange'):
     if f not in ld: fails.append(f"NailSalon schema is missing {f}")
 if 'aggregateRating' in ld:

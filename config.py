@@ -28,27 +28,26 @@ BUSINESS = {
     "whatsapp": "447727674214",
     "whatsapp_msg": "Hi Maddy, I'd like to book an appointment.",
     "email": f"hello@{DOMAIN}",
-    # The bold line on the address is HER name, not the salon's. She is the
-    # business; the salon is where she works from. It also means the page does
-    # not lean on Kizuri's name before Kizuri has agreed to it.
-    "venue": "Kizuri Beauty Parlour",
-    "venue_note": "inside Kizuri Beauty Parlour",
-    "street": "162 Hamlet Court Road",
-    "town": "Westcliff-on-Sea",
+    # Maddy left the salon she worked from in September 2026, so there is no
+    # premises to publish: no venue, no street, no postcode, no map link and no
+    # map pin. The page names the town and the county and nothing narrower.
+    #
+    # When she has a new chair, fill venue/street/postcode/maps/lat/lon back in
+    # and the Find me box, the footer and the schema pick them up again. The
+    # coordinates must come from the new POSTCODE (postcodes.io), never from
+    # eyeballing a map pin — and never the old ones, which put her in a salon
+    # she no longer works at. verify.py refuses a map pin with no street.
+    "venue": "",
+    "street": "",
+    "town": "Southend-on-Sea",
     "county": "Essex",
-    "postcode": "SS0 7LJ",
+    "postcode": "",
     "country": "GB",
     "instagram": "nailsbymads.x",
-    "maps": "https://maps.app.goo.gl/h7EepLr9fGA2HLPu8",
+    "maps": "",
     "years": 8,
-    # The ONS centroid for SS0 7LJ, from postcodes.io (quality 1 = inside the
-    # building nearest the postcode mean), cross-checked against an independent
-    # postcode lookup: 51.541210, 0.696267. It is the POSTCODE point, not a
-    # surveyed doorway — the parade runs a few doors either side. Do not
-    # hand-tune it from a map pin; if a better figure is ever needed it comes
-    # from the verified Google Business Profile, not from eyeballing.
-    "lat": 51.54121,
-    "lon": 0.696267,
+    "lat": None,
+    "lon": None,
     # Her own full name. Used for the Person entity in the structured data,
     # which is what ties the business to a real practitioner.
     "person": "Maddy Coram",
@@ -58,13 +57,14 @@ BUSINESS = {
 # Every one of these is waiting on Maddy. Empty = not supplied yet.
 
 OUTSTANDING = {
-    # Full URL of whichever booking system wins — Booksy or Kizuri's Ovatu.
+    # Full URL of her own booking system, when she has one. (It was going to be
+    # Booksy or the salon's Ovatu; she has since left the salon.)
     # Until then every "Book" button falls back to the phone number, which
     # always works.
     "booking_url": "",
 
-    # Confirmed by Maddy 25 Sept 2026. Days not listed are days she isn't at
-    # Kizuri. A "season" key marks hours that only apply part of the year —
+    # Confirmed by Maddy 25 Sept 2026 — her days at the salon she has since
+    # left. Re-confirm with her once she has a new chair. A "season" key marks hours that only apply part of the year —
     # see SEASONS below. Everything else runs all year.
     "hours": [
         {"day": "Monday",   "open": "09:00", "close": "15:00"},
@@ -219,8 +219,7 @@ OUTSTANDING = {
     # lives in photos/ and is copied into public/img at build time.
     "portrait": {
         "file": "maddy-coram-nail-technician-westcliff-on-sea.jpg",
-        "alt": "Maddy Coram, nail technician, at her station at Kizuri Beauty "
-               "Parlour in Westcliff-on-Sea",
+        "alt": "Maddy Coram, nail technician, at her nail station",
     },
 
     # Confirmed by Maddy 25 Sept 2026. She gave the levels, not the awarding
@@ -256,10 +255,10 @@ OUTSTANDING = {
 #
 # Nothing factual moved. Same services, same no-acrylics, same lifting promise.
 HERO = {
-    "eyebrow": f"{BUSINESS['town']} · Southend",
+    "eyebrow": "Southend · Westcliff · Leigh",
     "h1": 'The nails you already have, made stronger.',
     "lead": (
-        'Builder gel and hard gel over your own nails, never acrylic on top of them. The gel takes the wear so the nail underneath gets a chance to grow — that is really the whole job. Eight years of it, from a chair at Kizuri in Westcliff-on-Sea, minutes from Southend.'
+        'Builder gel and hard gel over your own nails, never acrylic on top of them. The gel takes the wear so the nail underneath gets a chance to grow — that is really the whole job. Eight years of it, here in Southend.'
     ),
 }
 
@@ -268,7 +267,7 @@ TRUST = ["8 years' experience", "Level 2 & 3 qualified",
 
 # Her voice, same reference as HERO above: thing, reason, aside.
 ABOUT = [
-    'I work from a chair at Kizuri Beauty Parlour on Hamlet Court Road, and I have spent eight years looking after natural nails. Gel, builder gel, hard gel, nail art and spa pedicures — and no acrylics at all.',
+    'I have spent eight years looking after natural nails. Gel, builder gel, hard gel, nail art and spa pedicures — and no acrylics at all.',
     'Most people who find me are a bit fed up with their nails. Peeling, splitting, thin after years of acrylic, or a reaction that put them off gel altogether. That is the bulk of what I do and the part I like most — the nail is usually fine underneath, it just needs something to take the wear while it grows.',
     'You get the same pair of hands every time. And if what you are after will not suit your nails I would rather say so at the start than have a set lift in a week — if one does, come back and I will sort it.',
 ]
@@ -393,19 +392,16 @@ SEO = {
     # "Westcliff-on-Sea" alone was costing us the town that actually gets
     # searched: "nail salon southend" 590/mo and "nails southend on sea"
     # 320/mo, against 10/mo for "nail salon westcliff on sea". Westcliff stays
-    # — it's where she is, and it's what the map pack matches on — but Southend
-    # has to be in the title too.
+    # as an area she covers; Southend leads because it is what gets searched.
     # Keep both towns but stay inside what Google actually displays: ~60
     # characters for the title, ~155 for the description.
     "title": "Nails by Maddy | Gel & Builder Gel Nails, Westcliff, Southend",
     # Leads with what is searched (Southend, Westcliff, gel nails), says what
     # makes her different in four words (natural nails, no acrylics), and
-    # carries the qualification. It no longer leans on Kizuri's name — that
-    # is where she works, not what she is selling, and their sign-off on
-    # using the address is still outstanding.
+    # carries the qualification. It names towns, never a venue.
     "description": (
-        "Level 2 and 3 qualified nail technician in Westcliff-on-Sea and "
-        "Southend. Gel, builder gel and hard gel on natural nails. HEMA-free "
+        "Level 2 and 3 qualified nail technician in Southend and "
+        "Westcliff-on-Sea. Gel, builder gel and hard gel on natural nails. HEMA-free "
         "available, no acrylics."
     ),
 }
@@ -449,9 +445,9 @@ FAQS = [
      "If a set lifts within a week, come back and I'll sort it."),
 
     ("Where are you, and do you cover Southend?",
-     "I work from Kizuri Beauty Parlour at 162 Hamlet Court Road in "
-     "Westcliff-on-Sea, Essex — a few minutes from Westcliff station, and easy "
-     "to get to from anywhere in Southend, Leigh or Chalkwell."),
+     "Yes — I'm in Southend-on-Sea, Essex, and I see clients from all over "
+     "Southend, Westcliff, Leigh and Chalkwell. Message me to book and I'll "
+     "give you the details."),
 ]
 
 
