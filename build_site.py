@@ -230,9 +230,10 @@ def icon(kind):
 def book_href():
     """Where "Book Now" actually sends someone, today.
 
-    The booking system is an open commercial question — Maddy books through
-    Kizuri's Ovatu account, so the booking record and the client relationship
-    sit with the salon rather than with her. Until that is settled, the button
+    The booking system is an open question — Maddy booked through the salon's
+    Ovatu account, so the booking record and the client relationship sat with
+    the salon rather than with her, and she has since left it. Until she has a
+    system of her own, the button
     says Book Now and opens WhatsApp, which is a channel she owns and which
     leaves her a written record of what was asked for.
 
@@ -316,7 +317,7 @@ def _season_window(name, today):
 def hours_html():
     hrs = C.OUTSTANDING["hours"]
     if not hrs:
-        return (hold("Opening hours", "her days and times at Kizuri")
+        return (hold("Opening hours", "her days and times")
                 or '<p class="addr-note">Ring or message to book an appointment.</p>')
     # Group by day, keeping the given order, so a day with two seasonal windows
     # is one row with both rather than the same day appearing twice.
@@ -573,24 +574,25 @@ def schema():
                   [f"{C.SITE_URL}/{img(x['file'])}" for x in C.OUTSTANDING["gallery"]]),
         "priceRange": "££",
         "currenciesAccepted": "GBP",
-        "address": {
-            "@type": "PostalAddress",
-            "name": b["venue"],
-            "streetAddress": b["street"],
-            "addressLocality": b["town"],
-            "addressRegion": b["county"],
-            "postalCode": b["postcode"],
-            "addressCountry": b["country"],
-        },
-        # ONS postcode centroid — see the note in config.BUSINESS. Publishing a
-        # point that is a few metres out is worth far more than publishing none,
-        # because it is what lets Google reconcile this page with the map pin.
-        "geo": {"@type": "GeoCoordinates",
-                "latitude": b["lat"], "longitude": b["lon"]},
-        "hasMap": b["maps"],
+        # Only the fields that are filled in. With no premises (she left the
+        # salon in September 2026) this is town, county and country — what a
+        # service-area business publishes — and there is no geo and no hasMap,
+        # because a pin with no premises under it would point at somewhere she
+        # does not work. See the note in config.BUSINESS.
+        "address": {"@type": "PostalAddress", **{k: v for k, v in (
+            ("name", b["venue"]),
+            ("streetAddress", b["street"]),
+            ("addressLocality", b["town"]),
+            ("addressRegion", b["county"]),
+            ("postalCode", b["postcode"]),
+            ("addressCountry", b["country"])) if v}},
+        **({"geo": {"@type": "GeoCoordinates",
+                    "latitude": b["lat"], "longitude": b["lon"]}}
+           if b["street"] and b["lat"] is not None else {}),
+        **({"hasMap": b["maps"]} if b["maps"] else {}),
         "areaServed": [{"@type": "City", "name": n}
                        for n in ("Westcliff-on-Sea", "Southend-on-Sea", "Leigh-on-Sea", "Chalkwell")],
-        "sameAs": [f"https://www.instagram.com/{b['instagram']}/", b["maps"]],
+        "sameAs": [f"https://www.instagram.com/{b['instagram']}/"] + ([b["maps"]] if b["maps"] else []),
         "founder": {"@id": f"{C.SITE_URL}/#maddy"},
         "employee": {"@id": f"{C.SITE_URL}/#maddy"},
         "knowsAbout": ["Gel nails", "Builder gel", "Hard gel overlays",
@@ -1040,8 +1042,8 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
 /* ---- find ---- */
 .find{display:grid;gap:1.5rem}
 .addr{font-style:normal;font-size:1.1em;line-height:1.5;margin:0 0 1rem}
-/* Her name is the bold line. The salon is where she works from, not who
-   the client is booking. */
+/* Her name is the bold line. A venue, when there is one, is where she works
+   from, not who the client is booking. */
 .addr b{display:block;font-weight:700;font-size:1.12em}
 .addr .venue{display:block;color:var(--ink-60);font-size:.9em;
   margin:.1rem 0 .35rem}
@@ -1107,7 +1109,19 @@ def build():
     robots = '<meta name="robots" content="noindex,nofollow">' if C.DRAFT else ""
 
     trust = "".join(f"<li>{esc(t)}</li>" for t in C.TRUST)
-    maps_link = (f'<p><a href="{esc(b["maps"])}" rel="noopener">Open in Google Maps</a></p>')
+    maps_link = (f'<p><a href="{esc(b["maps"])}" rel="noopener">Open in Google Maps</a></p>'
+                 if b["maps"] else "")
+    # Street and postcode only when there is a premises. Without one the box
+    # names the town and says how the details reach a client instead.
+    if b["street"]:
+        venue = f'<span class="venue">inside {esc(b["venue"])}</span>' if b["venue"] else ""
+        addr_lines = f'{venue}{esc(b["street"])}<br>\n            {esc(b["town"])}<br>{esc(b["postcode"])}'
+        addr_note = ""
+        foot_addr = ", ".join(esc(x) for x in (b["venue"], b["street"], f'{b["town"]} {b["postcode"]}') if x.strip())
+    else:
+        addr_lines = f'{esc(b["town"])}<br>{esc(b["county"])}'
+        addr_note = '<p class="addr-note">Message me to book and I\'ll give you the details.</p>'
+        foot_addr = f'{esc(b["town"])}, {esc(b["county"])}'
 
     page = f"""<!doctype html>
 <html lang="en-GB">
@@ -1230,9 +1244,8 @@ def build():
       <h2>Find me</h2>
       <div class="find">
         <div>
-          <address class="addr"><b>{esc(b["name"])}</b><span class="venue">{esc(b["venue_note"])}</span>{esc(b["street"])}<br>
-            {esc(b["town"])}<br>{esc(b["postcode"])}</address>
-          {maps_link}
+          <address class="addr"><b>{esc(b["name"])}</b>{addr_lines}</address>
+          {addr_note}{maps_link}
           {cta_row("left")}
         </div>
         <div>{hours_html()}</div>
@@ -1252,7 +1265,7 @@ def build():
       <div><a href="mailto:{esc(b["email"])}">{esc(b["email"])}</a></div>
       <div><a href="https://www.instagram.com/{esc(b["instagram"])}/" rel="me noopener">
         @{esc(b["instagram"])}</a></div>
-      <div>{esc(b["venue"])}, {esc(b["street"])}, {esc(b["town"])} {esc(b["postcode"])}</div>
+      <div>{foot_addr}</div>
     </div>
     <p class="fine">&copy; {_dt.date.today().year} {esc(b["name"])}. Site by
       <a href="{esc(cr["builder_url"])}" rel="noopener">{esc(cr["builder"])}</a>,

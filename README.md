@@ -210,7 +210,7 @@ that blind spot on every run.
 
 ## SEO and keywords
 
-Westcliff is where she is. **Southend is what gets searched.**
+Westcliff is an area she covers. **Southend is what gets searched.**
 
 | Term | Monthly volume |
 |---|---|
@@ -328,7 +328,8 @@ meaning anything. **Re-measure whenever the mark changes.**
 | `booking_url` in `config.py` | Every Book button — falls back to WhatsApp meanwhile |
 | Maddy's sign-off on the 19 nail art tiers | `DRAFT = False` |
 | Review permissions from Sarah and Paula | Two of the three reviews going live |
-| Kizuri's OK on the address | Using the salon address publicly |
+| Her new address, once she has a chair | Street, postcode and map pin — the page names only Southend-on-Sea, Essex since she left the salon (Sept 2026) |
+| Her days and times at the new place | The hours on the page are her old salon days |
 | Google Business Profile access | Map pack, reviews, hours |
 | Insurance certificate | Currently her word for it |
 | A men's manicure price | The gallery shows a men's set; the menu has only a men's pedicure |
