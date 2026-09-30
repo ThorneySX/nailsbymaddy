@@ -11,9 +11,10 @@ allowed to do to it, and why.
 ## The one-paragraph brief
 
 `nailsbymaddy.co.uk` is a one-page static site for **Maddy Coram**, a
-self-employed nail technician in Southend-on-Sea. She worked from a chair at
-Kizuri Beauty Parlour in Westcliff-on-Sea until September 2026, when she left;
-**the salon's name and address must not appear on the site** and `verify.py`
+self-employed nail technician working from a desk inside Kallos Beauty
+Collective, 57 London Road, Southend-on-Sea, since 29 September 2026. She
+worked at Kizuri Beauty Parlour in Westcliff-on-Sea until earlier that month;
+**Kizuri's name and address must not appear on the site** and `verify.py`
 refuses them. Eight years in the trade, Level 2 and 3 qualified, natural
 nails only — gel, builder gel, hard gel, nail art, spa pedicures, **no
 acrylics**. It is the first full "The Lot" delivery for **WinCustomers**
