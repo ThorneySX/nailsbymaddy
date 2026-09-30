@@ -28,26 +28,31 @@ BUSINESS = {
     "whatsapp": "447727674214",
     "whatsapp_msg": "Hi Maddy, I'd like to book an appointment.",
     "email": f"hello@{DOMAIN}",
-    # Maddy left the salon she worked from in September 2026, so there is no
-    # premises to publish: no venue, no street, no postcode, no map link and no
-    # map pin. The page names the town and the county and nothing narrower.
-    #
-    # When she has a new chair, fill venue/street/postcode/maps/lat/lon back in
-    # and the Find me box, the footer and the schema pick them up again. The
-    # coordinates must come from the new POSTCODE (postcodes.io), never from
-    # eyeballing a map pin — and never the old ones, which put her in a salon
-    # she no longer works at. verify.py refuses a map pin with no street.
-    "venue": "",
-    "street": "",
+    # She works from a desk inside Kallos Beauty Collective, 57 London Road,
+    # from 29 September 2026 (she left her previous salon earlier that month).
+    # The bold line on the address is HER name, then "inside Kallos Beauty Collective": she is
+    # the business, the salon is where she works from. Andy asked for exactly
+    # that order on 30 September, with the salon's full name.
+    "venue": "Kallos Beauty Collective",
+    "street": "57 London Road",
     "town": "Southend-on-Sea",
     "county": "Essex",
-    "postcode": "",
+    "postcode": "SS1 1PF",
     "country": "GB",
     "instagram": "nailsbymads.x",
-    "maps": "",
+    # Google's documented Maps URL form (api=1 search), so the link is built
+    # from the address rather than copied from somebody's share link.
+    "maps": "https://www.google.com/maps/search/?api=1&query=57+London+Road%2C+Southend-on-Sea+SS1+1PF",
     "years": 8,
-    "lat": None,
-    "lon": None,
+    # The postcode point for SS1 1PF: 51.540626, 0.706977. postcodes.io is
+    # refused by the build sandbox's proxy, so it came from the published
+    # postcode listing instead and was cross-checked against the Ordnance
+    # Survey grid reference for the same postcode, TQ878858 — converted with
+    # pyproj it lands at E587818 N185887, inside that 100 m square. It is the
+    # POSTCODE point, not a surveyed doorway. Re-check against postcodes.io
+    # when it is reachable; never hand-tune it from a map pin.
+    "lat": 51.540626,
+    "lon": 0.706977,
     # Her own full name. Used for the Person entity in the structured data,
     # which is what ties the business to a real practitioner.
     "person": "Maddy Coram",
@@ -63,9 +68,10 @@ OUTSTANDING = {
     # always works.
     "booking_url": "",
 
-    # Confirmed by Maddy 25 Sept 2026 — her days at the salon she has since
-    # left. Re-confirm with her once she has a new chair. A "season" key marks hours that only apply part of the year —
-    # see SEASONS below. Everything else runs all year.
+    # Confirmed by Maddy 25 Sept 2026 at her previous salon. Kept unchanged at
+    # Kallos until Andy has asked her (his call, 30 Sept 2026). A "season" key
+    # marks hours that only apply part of the year — see SEASONS below.
+    # Everything else runs all year.
     "hours": [
         {"day": "Monday",   "open": "09:00", "close": "15:00"},
         {"day": "Thursday", "open": "09:00", "close": "21:00", "season": "summer"},
@@ -445,9 +451,9 @@ FAQS = [
      "If a set lifts within a week, come back and I'll sort it."),
 
     ("Where are you, and do you cover Southend?",
-     "Yes — I'm in Southend-on-Sea, Essex, and I see clients from all over "
-     "Southend, Westcliff, Leigh and Chalkwell. Message me to book and I'll "
-     "give you the details."),
+     "Yes — I'm inside Kallos Beauty Collective at 57 London Road, Southend-on-Sea, Essex SS1 1PF, "
+     "and I see clients from all over Southend, Westcliff, Leigh and "
+     "Chalkwell."),
 ]
 
 
