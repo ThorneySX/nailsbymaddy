@@ -30,10 +30,10 @@ BUSINESS = {
     "email": f"hello@{DOMAIN}",
     # She works from a desk inside Kallos Beauty Collective, 57 London Road,
     # from 29 September 2026 (she left her previous salon earlier that month).
-    # The bold line on the address is HER name, then "inside Kallos": she is
+    # The bold line on the address is HER name, then "inside Kallos Beauty Collective": she is
     # the business, the salon is where she works from. Andy asked for exactly
-    # that order on 30 September.
-    "venue": "Kallos",
+    # that order on 30 September, with the salon's full name.
+    "venue": "Kallos Beauty Collective",
     "street": "57 London Road",
     "town": "Southend-on-Sea",
     "county": "Essex",
@@ -69,8 +69,9 @@ OUTSTANDING = {
     "booking_url": "",
 
     # Confirmed by Maddy 25 Sept 2026 at her previous salon. Kept unchanged at
-    # Kallos until Andy has asked her (his call, 30 Sept 2026). A "season" key marks hours that only apply part of the year —
-    # see SEASONS below. Everything else runs all year.
+    # Kallos until Andy has asked her (his call, 30 Sept 2026). A "season" key
+    # marks hours that only apply part of the year — see SEASONS below.
+    # Everything else runs all year.
     "hours": [
         {"day": "Monday",   "open": "09:00", "close": "15:00"},
         {"day": "Thursday", "open": "09:00", "close": "21:00", "season": "summer"},
@@ -450,7 +451,7 @@ FAQS = [
      "If a set lifts within a week, come back and I'll sort it."),
 
     ("Where are you, and do you cover Southend?",
-     "Yes — I'm inside Kallos at 57 London Road, Southend-on-Sea, Essex SS1 1PF, "
+     "Yes — I'm inside Kallos Beauty Collective at 57 London Road, Southend-on-Sea, Essex SS1 1PF, "
      "and I see clients from all over Southend, Westcliff, Leigh and "
      "Chalkwell."),
 ]
