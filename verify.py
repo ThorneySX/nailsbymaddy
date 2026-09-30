@@ -322,18 +322,25 @@ for entry in _C.OUTSTANDING['gallery']:
         stamped += 1
         weakest = corner if weakest is None else min(weakest, corner)
 
-p = _C.OUTSTANDING.get('portrait')
-if p:
+# The portrait and the photograph of her desk are both left clean: one is her
+# own face, the other is the room, and neither is work that gets reposted.
+for key, why in (('portrait', "it is Maddy's own face on her own site"),
+                 ('workstation', "it is a picture of the room, not of her work")):
+    p = _C.OUTSTANDING.get(key)
+    if not p:
+        continue
     pstem, psuf = p['file'].rsplit('.', 1)
     phits = sorted(pathlib.Path('public/img').glob(f'{pstem}.*.{psuf}'))
+    if len(phits) != 1:
+        fails.append(f"expected exactly one published {pstem}.<hash>.{psuf}, found {len(phits)}")
+        continue
     a = Image.open(pathlib.Path('photos') / p['file']).convert('RGB')
-    b = Image.open(phits[0]).convert('RGB') if phits else a
+    b = Image.open(phits[0]).convert('RGB')
     if max(_mad(x, y) for x, y in zip(_corners(a), _corners(b))) >= STAMP_FLOOR:
-        fails.append("the portrait has been watermarked — it is Maddy's own face "
-                     "on her own site and should not carry a stamp")
+        fails.append(f"the {key} has been watermarked — {why}, and it should not carry a stamp")
 if stamped:
     print(f"✓ {stamped} gallery photographs watermarked (weakest {weakest:.1f} vs "
-          f"{STAMP_FLOOR} floor), portrait left clean")
+          f"{STAMP_FLOOR} floor), portrait and desk left clean")
 else:
     print("✗ no gallery photograph carries a watermark")
 
@@ -607,7 +614,9 @@ else:
 #     published as work-07.jpg tells a crawler nothing; the alt text is the
 #     other half and neither substitutes for the other.
 STOP = {'and', 'the', 'with', 'a', 'in', 'on', 'of'}
-for x in C.OUTSTANDING['gallery'] + [C.OUTSTANDING['portrait']]:
+_named = C.OUTSTANDING['gallery'] + [x for x in (C.OUTSTANDING['portrait'],
+                                                 C.OUTSTANDING.get('workstation')) if x]
+for x in _named:
     stem = x['file'].rsplit('.', 1)[0]
     if re.fullmatch(r'(work|img|photo|image|dsc|IMG)[-_]?\d+', stem):
         fails.append(f"{x['file']} is still a camera filename — no keywords in it")
@@ -623,7 +632,7 @@ for x in C.OUTSTANDING['gallery'] + [C.OUTSTANDING['portrait']]:
         fails.append(f"{x['file']} alt text is {len(alt)} chars — screen readers will not thank us")
     if alt.lower().startswith(('image of', 'picture of', 'photo of')):
         fails.append(f"{x['file']} alt text opens with 'image of' — the tag already says that")
-print(f"✓ {len(C.OUTSTANDING['gallery'])+1} images: keyword filenames and "
+print(f"✓ {len(_named)} images: keyword filenames and "
       f"descriptive alt text, none of it boilerplate")
 
 # 9e. every master photograph must have its ORIGINAL's fingerprint recorded.

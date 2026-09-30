@@ -87,14 +87,15 @@ def copy_assets():
 
     wanted = [p["file"] for p in C.OUTSTANDING["gallery"]]
     portrait = C.OUTSTANDING["portrait"]["file"] if C.OUTSTANDING["portrait"] else None
-    if portrait:
-        wanted.append(portrait)
+    desk = C.OUTSTANDING.get("workstation")
+    unstamped = {x for x in (portrait, desk and desk["file"]) if x}
+    wanted += sorted(unstamped)
     for f in wanted:
         src = PHOTOS / f
         if not src.exists():
             raise SystemExit(f"config names photos/{f}, which does not exist")
         tmp = PUB / "img" / f
-        if f == portrait:
+        if f in unstamped:
             shutil.copy(src, tmp)
         else:
             watermark.stamp_file(src, tmp)
@@ -447,6 +448,16 @@ def about_html():
     return f'<div class="about">{pic}<div class="about-copy">{body}</div></div>'
 
 
+def workstation_html():
+    """Her desk, so a first-timer knows what they are walking into."""
+    d = C.OUTSTANDING.get("workstation")
+    if not d:
+        return ""
+    return (f'<figure class="desk"><img src="{img(d["file"])}" '
+            f'alt="{H.escape(d["alt"])}" loading="lazy" decoding="async" '
+            f'width="1200" height="1600"></figure>')
+
+
 def faq_html():
     items = "".join(
         f'<details class="faq"><summary>{esc(q)}</summary><p>{esc(a)}</p></details>'
@@ -520,6 +531,20 @@ def image_objects():
             "copyrightNotice": f"© {_dt.date.today().year} {C.BUSINESS['name']}",
             "creditText": C.BUSINESS["name"],
             "representativeOfPage": True,
+        })
+    d = C.OUTSTANDING.get("workstation")
+    if d:
+        url = f"{C.SITE_URL}/{img(d['file'])}"
+        out.append({
+            "@type": "ImageObject",
+            "@id": f"{C.SITE_URL}/#workstation",
+            "contentUrl": url, "url": url,
+            "name": d["alt"], "caption": d["alt"],
+            "creator": {"@id": f"{C.SITE_URL}/#maddy"},
+            "copyrightNotice": f"© {_dt.date.today().year} {C.BUSINESS['name']}",
+            "creditText": C.BUSINESS["name"],
+            "representativeOfPage": False,
+            "width": 1200, "height": 1600,
         })
     return out
 
@@ -1049,7 +1074,12 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
   margin:.1rem 0 .35rem}
 .addr-note{color:var(--ink-60);font-size:.9rem}
 .hours .row dd{font-weight:600}
-@media (min-width:44rem){.find{grid-template-columns:1fr 1fr;gap:2.5rem}}
+/* Her desk. On a phone it sits between the address and the hours; on a wider
+   screen it takes the right-hand column beside both. */
+.desk{margin:0}
+.desk img{border-radius:var(--radius);width:100%;object-fit:cover;aspect-ratio:4/5}
+@media (min-width:44rem){.find{grid-template-columns:1fr 1fr;gap:2.5rem}
+  .find .desk{grid-column:2;grid-row:1 / span 2}}
 
 /* ---- faq ---- */
 .faqs{border-top:1px solid var(--line)}
@@ -1248,6 +1278,7 @@ def build():
           {addr_note}{maps_link}
           {cta_row("left")}
         </div>
+        {workstation_html()}
         <div>{hours_html()}</div>
       </div>
     </div>
@@ -1329,6 +1360,8 @@ a{{color:#B81E67;font-weight:600}}</style></head>
     pt = o.get("portrait")
     if pt:
         entries.insert(0, _img_entry(f"{C.SITE_URL}/{img(pt['file'])}"))
+    if o.get("workstation"):
+        entries.append(_img_entry(f"{C.SITE_URL}/{img(o['workstation']['file'])}"))
     entries.insert(0, _img_entry(f"{C.SITE_URL}/{SHARE}"))
 
     (PUB / "sitemap.xml").write_text(

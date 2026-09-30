@@ -228,6 +228,17 @@ OUTSTANDING = {
         "alt": "Maddy Coram, nail technician, at her nail station",
     },
 
+    # Her desk at Kallos Beauty Collective, supplied by Andy 30 Sept 2026. Shown
+    # in Find me so a first-timer knows what they are walking into. Not
+    # watermarked, like the portrait: it is a picture of the room, not of her
+    # work, and a stamp would make it read as stock. The master is a 1200x1600
+    # re-encode with no Exif (the upload carried none either — checked).
+    "workstation": {
+        "file": "nail-technician-desk-kallos-beauty-collective-southend.jpg",
+        "alt": "Maddy's nail desk inside Kallos Beauty Collective in Southend: a white "
+               "desk with a hand rest, lamp and a shelf of gel polishes",
+    },
+
     # Confirmed by Maddy 25 Sept 2026. She gave the levels, not the awarding
     # body, so the awarding body is deliberately not named — do not guess it.
     # Insurance certificate still to arrive; the insurer is her own statement.
