@@ -154,7 +154,41 @@ a{color:var(--pink-ink)}
 .btn.ghost:hover{background:var(--ink);color:#fff}
 .btn .ico{width:18px;height:18px;flex:none}
 @media (max-width:26rem){.cta .btn{flex:1 1 100%}}
-.head-in .btn .ico{width:16px;height:16px}
+/* The header button, small. Asked for at "1/3 of its size", in black text and
+   icon, on a pink pill, reading Contact Me behind a speech bubble.
+   MEASURED at 390px, and it is half rather than a third: 120.8x44 before,
+   103.3x25.2 after — 49% of the area, 57% of the height, 86% of the width.
+   The height went where it was asked to. The WIDTH could not, and the reason
+   is the label: "Contact Me" is two characters longer than "Book Now", so the
+   text sets the width and the only ways past it are type below 11.84px or a
+   word Andy did not ask for. A literal third would be 40x15px, which holds
+   neither the words nor an icon and puts the page's most important tap under
+   every target-size floor there is — WCAG 2.5.8 asks 24px, Apple asks 44.
+   So the PILL shrinks and the TAP AREA does not: ::after is an invisible box
+   stretched back out to 44px high, centred on the pill. Small button, full
+   thumb. Nothing measures the ::after, so verify.py's tap-target check reads
+   the visible pill and warns at 25.2px — that warning is correct about the
+   pill and wrong about the thumb, and it is the honest one to argue with.
+   Computed, not eyeballed: black on this pink is 4.69:1, which clears AA's
+   4.5 for text at this size. White on it is 3.93:1 and does NOT. So the colour
+   Andy asked for is also the accessible one, which is not always how that goes.
+   The hover does NOT darken to --pink-ink any more. Black on that measures
+   3.00:1, so inheriting the old hover would have failed AA for as long as a
+   thumb was on it. Border to Ink instead: clear feedback, no colour outside the
+   four in the palette, and the text contrast never moves.
+   min-height:0 is the load-bearing line. `.head-in .btn{min-height:44px}` is
+   declared 80 lines above this, same selector, same specificity — so padding
+   and font-size here would have shrunk nothing at all and the pill would have
+   stayed 44px tall while the comment claimed otherwise. Overriding it is what
+   makes the pill small; the ::after is what keeps the thumb's target big. */
+.head-in .btn{position:relative;min-height:0;font-size:.74rem;line-height:1.2;
+  letter-spacing:.01em;
+  padding:.22rem .6rem;gap:.26rem;color:var(--ink);border-color:var(--pink)}
+.head-in .btn::after{content:"";position:absolute;left:0;right:0;
+  top:50%;height:44px;transform:translateY(-50%)}
+.head-in .btn:hover,.head-in .btn:focus-visible{color:var(--ink);
+  background:var(--pink);border-color:var(--ink)}
+.head-in .btn .ico{width:13px;height:13px}
 
 /* ---- hero ---- */
 .hero{background:linear-gradient(180deg,var(--blush) 0%,var(--blush-2) 70%,#fff 100%);
@@ -368,7 +402,7 @@ h2{font-size:clamp(1.6rem,1.2rem + 2vw,2.35rem);margin-bottom:1.4rem}
   <div class="wrap head-in">
     <a class="brand" href="#top" aria-label="Nails by Maddy — home"><img class="logo" src="img/nails-by-maddy-logo.svg" alt="Nails by Maddy" width="1200" height="560" fetchpriority="high" decoding="async"></a>
     <div class="head-right">
-      <a class="btn" href="https://wa.me/447727674214?text=Hi%20Maddy%2C%20I%27d%20like%20to%20book%20an%20appointment." aria-label="Book an appointment with Maddy" rel="noopener"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span>Book Now</span></a>
+      <a class="btn" href="https://wa.me/447727674214?text=Hi%20Maddy%2C%20I%27d%20like%20to%20book%20an%20appointment." aria-label="Contact Me on WhatsApp" rel="noopener"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1.2-3.6A7.5 7.5 0 1 1 8 19.2z"/></svg><span>Contact Me</span></a>
       <a class="burger" href="#menu" aria-label="Open menu"><span></span></a>
     </div>
   </div>
