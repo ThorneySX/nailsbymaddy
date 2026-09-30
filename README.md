@@ -328,8 +328,8 @@ meaning anything. **Re-measure whenever the mark changes.**
 | `booking_url` in `config.py` | Every Book button — falls back to WhatsApp meanwhile |
 | Maddy's sign-off on the 19 nail art tiers | `DRAFT = False` |
 | Review permissions from Sarah and Paula | Two of the three reviews going live |
-| Her new address, once she has a chair | Street, postcode and map pin — the page names only Southend-on-Sea, Essex since she left the salon (Sept 2026) |
-| Her days and times at the new place | The hours on the page are her old salon days |
+| Her days and times at Kallos | The hours on the page are still her previous salon's days — kept until Andy has asked her |
+| Her own booking system | Book Now opens WhatsApp until she has one; Kallos's Square account is the salon's, not hers |
 | Google Business Profile access | Map pack, reviews, hours |
 | Insurance certificate | Currently her word for it |
 | A men's manicure price | The gallery shows a men's set; the menu has only a men's pedicure |

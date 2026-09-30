@@ -1117,7 +1117,7 @@ def build():
         venue = f'<span class="venue">inside {esc(b["venue"])}</span>' if b["venue"] else ""
         addr_lines = f'{venue}{esc(b["street"])}<br>\n            {esc(b["town"])}<br>{esc(b["postcode"])}'
         addr_note = ""
-        foot_addr = ", ".join(esc(x) for x in (b["venue"], b["street"], f'{b["town"]} {b["postcode"]}') if x.strip())
+        foot_addr = ", ".join(esc(x) for x in (f'Inside {b["venue"]}' if b["venue"] else "", b["street"], f'{b["town"]} {b["postcode"]}') if x.strip())
     else:
         addr_lines = f'{esc(b["town"])}<br>{esc(b["county"])}'
         addr_note = '<p class="addr-note">Message me to book and I\'ll give you the details.</p>'
