@@ -11,8 +11,10 @@ allowed to do to it, and why.
 ## The one-paragraph brief
 
 `nailsbymaddy.co.uk` is a one-page static site for **Maddy Coram**, a
-self-employed nail technician working from Kizuri Beauty Parlour in
-Westcliff-on-Sea. Eight years in the trade, Level 2 and 3 qualified, natural
+self-employed nail technician in Southend-on-Sea. She worked from a chair at
+Kizuri Beauty Parlour in Westcliff-on-Sea until September 2026, when she left;
+**the salon's name and address must not appear on the site** and `verify.py`
+refuses them. Eight years in the trade, Level 2 and 3 qualified, natural
 nails only — gel, builder gel, hard gel, nail art, spa pedicures, **no
 acrylics**. It is the first full "The Lot" delivery for **WinCustomers**
 (Outstanding Group), built as the template for every customer after her.
@@ -138,8 +140,8 @@ Stop and ask Andy (andyt@outstanding-group.com) before:
 
 ## The one commercial fact worth knowing
 
-Maddy books through **Kizuri's Ovatu account**, so the booking record and the
-client relationship sit with the salon, not with her. The standard UK
+Maddy booked through **Kizuri's Ovatu account**, so the booking record and the
+client relationship sat with the salon, not with her — and she has now left it. The standard UK
 chair-rental agreement is asymmetric: it stops the renter soliciting the
 salon's clients, with no matching restriction the other way.
 
